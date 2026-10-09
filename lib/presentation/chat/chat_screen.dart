@@ -105,14 +105,112 @@ class _ChatState extends State<ChatScreen> {
     if (topic == null) return;
     final chunks = state.repositories.chunks.forTopic(topic.id).where((chunk) =>
       chunk.pageNumber == source.page && chunk.document.target?.name == source.docName).toList();
-    showModalBottomSheet<void>(context: context, showDragHandle: true, isScrollControlled: true,
-      builder: (context) => SafeArea(child: Padding(padding: const EdgeInsets.all(20),
-        child: SingleChildScrollView(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-          Text('${source.docName} · Page ${source.page}', style: const TextStyle(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 12),
-          for (final chunk in chunks) Padding(padding: const EdgeInsets.only(bottom: 12), child: Text(chunk.text)),
-          if (chunks.isEmpty) const Text('The cited text is no longer available.'),
-        ])))));
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (context) {
+        final theme = Theme.of(context);
+        return FractionallySizedBox(
+          heightFactor: .78,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.errorContainer,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(Icons.picture_as_pdf_rounded,
+                        color: theme.colorScheme.error),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(source.docName,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 4),
+                        Text('Source document',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text('Page ${source.page}',
+                        style: theme.textTheme.labelMedium?.copyWith(
+                            color: theme.colorScheme.onPrimaryContainer,
+                            fontWeight: FontWeight.w700)),
+                  ),
+                ]),
+                const SizedBox(height: 20),
+                Text('Cited passage',
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: chunks.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.find_in_page_outlined,
+                                  size: 38,
+                                  color: theme.colorScheme.onSurfaceVariant),
+                              const SizedBox(height: 10),
+                              Text('This cited passage is no longer available.',
+                                  textAlign: TextAlign.center,
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                      color:
+                                          theme.colorScheme.onSurfaceVariant)),
+                            ],
+                          ),
+                        )
+                      : ListView.separated(
+                          itemCount: chunks.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 10),
+                          itemBuilder: (context, index) => Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.surfaceContainerHighest
+                                  .withValues(alpha: .55),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                  color: theme.colorScheme.outlineVariant
+                                      .withValues(alpha: .65)),
+                            ),
+                            child: Text(chunks[index].text,
+                                style: theme.textTheme.bodyMedium
+                                    ?.copyWith(height: 1.55)),
+                          ),
+                        ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -218,23 +316,73 @@ class _Bubble extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(m.text, style: const TextStyle(height: 1.4)),
+          _FormattedMessage(m.text),
           if (m.sources.isNotEmpty) ...[
-            const Divider(height: 20),
-            Text('Sources (${m.sources.length})', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-            for (final s in m.sources)
-              InkWell(onTap: onSource == null ? null : () => onSource!(s), borderRadius: BorderRadius.circular(8),
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 6, bottom: 4),
-                  child: Row(children: [
-                    const Icon(Icons.picture_as_pdf, size: 14, color: Colors.red),
-                    const SizedBox(width: 6),
-                    Expanded(child: Text(s.docName, style: const TextStyle(fontSize: 11))),
-                    Text('Page ${s.page}', style: TextStyle(fontSize: 11, color: Theme.of(context).hintColor)),
-                  ]),
-                ),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(11),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest
+                    .withValues(alpha: .45),
+                borderRadius: BorderRadius.circular(12),
               ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    Icon(Icons.auto_awesome_outlined,
+                        size: 15,
+                        color: Theme.of(context).colorScheme.primary),
+                    const SizedBox(width: 6),
+                    Text('Sources',
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                            fontWeight: FontWeight.w700)),
+                    const SizedBox(width: 6),
+                    Text('${m.sources.length}',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                  ]),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 7,
+                    runSpacing: 7,
+                    children: [
+                      for (final source in m.sources)
+                        ActionChip(
+                          onPressed: onSource == null
+                              ? null
+                              : () => onSource!(source),
+                          avatar: const Icon(Icons.description_outlined,
+                              size: 16),
+                          label: ConstrainedBox(
+                            constraints: BoxConstraints(maxWidth: w * .54),
+                            child: Text(
+                              '${source.docName} · p. ${source.page}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          visualDensity: VisualDensity.compact,
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                          labelStyle: Theme.of(context).textTheme.labelSmall,
+                          padding: const EdgeInsets.symmetric(horizontal: 5),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ],
+          const SizedBox(height: 8),
+          Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(Icons.access_time_rounded,
+                size: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+            const SizedBox(width: 4),
+            Text(_messageTimestamp(context, m.sentAt),
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant)),
+          ]),
           if (onCopy != null && !m.isUser)
             Align(alignment: Alignment.centerRight, child: IconButton(
               visualDensity: VisualDensity.compact, tooltip: 'Copy message',
@@ -242,5 +390,59 @@ class _Bubble extends StatelessWidget {
         ]),
       ),
     );
+  }
+}
+
+String _messageTimestamp(BuildContext context, DateTime timestamp) {
+  final local = timestamp.toLocal();
+  final date = MaterialLocalizations.of(context).formatShortDate(local);
+  final time = MaterialLocalizations.of(context).formatTimeOfDay(
+      TimeOfDay.fromDateTime(local));
+  return '$date · $time';
+}
+
+class _FormattedMessage extends StatelessWidget {
+  const _FormattedMessage(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final base = Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.5) ??
+        const TextStyle(height: 1.5);
+    final emphasis = base.copyWith(fontWeight: FontWeight.w700);
+    final italic = base.copyWith(fontStyle: FontStyle.italic);
+    final code = base.copyWith(
+      fontFamily: 'monospace',
+      fontSize: (base.fontSize ?? 14) - 1,
+      backgroundColor:
+          Theme.of(context).colorScheme.surfaceContainerHighest,
+    );
+    final spans = <InlineSpan>[];
+    final pattern = RegExp(r'(\*\*.+?\*\*|__.+?__|\*[^*\n]+\*|_[^_\n]+_|`[^`]+`)');
+    final lines = text.split('\n');
+    for (var lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+      if (lineIndex > 0) spans.add(const TextSpan(text: '\n'));
+      final line = lines[lineIndex];
+      var cursor = 0;
+      for (final match in pattern.allMatches(line)) {
+        if (match.start > cursor) {
+          spans.add(TextSpan(text: line.substring(cursor, match.start)));
+        }
+        final token = match.group(0)!;
+        if (token.startsWith('**') || token.startsWith('__')) {
+          spans.add(TextSpan(
+              text: token.substring(2, token.length - 2), style: emphasis));
+        } else if (token.startsWith('`')) {
+          spans.add(TextSpan(
+              text: token.substring(1, token.length - 1), style: code));
+        } else {
+          spans.add(TextSpan(
+              text: token.substring(1, token.length - 1), style: italic));
+        }
+        cursor = match.end;
+      }
+      if (cursor < line.length) spans.add(TextSpan(text: line.substring(cursor)));
+    }
+    return Text.rich(TextSpan(style: base, children: spans));
   }
 }

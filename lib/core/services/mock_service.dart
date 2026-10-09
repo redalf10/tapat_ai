@@ -37,7 +37,7 @@ class MockRagService implements RagService {
   Future<Message> ask(Topic topic, String q) async {
     await Future.delayed(const Duration(milliseconds: 1200));
     if (topic.docs.isEmpty) {
-      return const Message(
+      return Message(
           'This knowledge base has no documents yet. Add one to get answers.',
           false);
     }

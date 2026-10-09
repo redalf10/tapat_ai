@@ -37,7 +37,7 @@ class LocalRagService implements RagService {
       if (event.message != null) finalMessage = event.message;
     }
     return finalMessage ??
-        const Message("I couldn't find that in your documents.", false);
+        Message("I couldn't find that in your documents.", false);
   }
 
   @override
@@ -56,7 +56,7 @@ class LocalRagService implements RagService {
     final documents = repositories.documents.forTopic(entity.id);
     final index = repositories.chunks.indexForTopic(entity.id);
     if (documents.isEmpty || index.chunks.isEmpty) {
-      yield const RagStreamEvent.complete(
+      yield RagStreamEvent.complete(
         Message(
           'This knowledge base has no documents yet. Add one to get answers.',
           false,
@@ -89,7 +89,7 @@ class LocalRagService implements RagService {
       8,
     );
     if (found.isEmpty) {
-      yield const RagStreamEvent.complete(
+      yield RagStreamEvent.complete(
         Message("I couldn't find that in your documents.", false),
       );
       return;
@@ -107,7 +107,7 @@ class LocalRagService implements RagService {
     final context = selected.context;
     final sources = selected.sources;
     if (context.isEmpty) {
-      yield const RagStreamEvent.complete(
+      yield RagStreamEvent.complete(
         Message("I couldn't find that in your documents.", false),
       );
       return;
@@ -305,7 +305,7 @@ ChatMessageEntity toChatEntity(TopicEntity topic, Message message) =>
             .map((s) => {'docName': s.docName, 'page': s.page})
             .toList(),
       )
-      ..createdAt = DateTime.now();
+      ..createdAt = message.sentAt;
 
 Message fromChatEntity(ChatMessageEntity entity) {
   final raw = jsonDecode(entity.sourcesJson) as List<dynamic>;
@@ -315,5 +315,6 @@ Message fromChatEntity(ChatMessageEntity entity) {
     raw
         .map((v) => SourceRef(v['docName'] as String, v['page'] as int))
         .toList(growable: false),
+    entity.createdAt,
   );
 }
