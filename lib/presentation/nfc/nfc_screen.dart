@@ -65,7 +65,19 @@ class NfcDetectedScreen extends StatelessWidget {
   final String topicId;
   @override
   Widget build(BuildContext context) {
-    final t = AppState.read(context).byId(topicId);
+    final t = AppState.read(context).topics.where((topic) => topic.id == topicId).firstOrNull;
+    if (t == null) {
+      return DarkScaffold(child: Column(children: [
+        const Spacer(),
+        const Icon(Icons.error_outline, size: 72, color: Colors.orangeAccent),
+        const SizedBox(height: 18),
+        const Text('Knowledge base not found', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700)),
+        const SizedBox(height: 10),
+        const Text('This tag points to a topic that has not been saved on this device.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white70)),
+        const Spacer(),
+        SoftButton(label: 'Close', dark: true, onPressed: () => Navigator.pop(context)),
+      ]));
+    }
     return DarkScaffold(
       child: Column(children: [
         const Spacer(),

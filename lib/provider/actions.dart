@@ -4,6 +4,10 @@ import 'package:tapat_ai/provider/app_provider.dart';
 
 Future<void> uploadToTopic(BuildContext context, String topicId) async {
   final s = AppState.read(context);
+  if (!s.useMocks && !s.embeddingEngine.isLoaded) {
+    await Navigator.pushNamed(context, Routes.models);
+    if (!context.mounted || !s.embeddingEngine.isLoaded) return;
+  }
   final nav = Navigator.of(context);
   final docs = await s.picker.pick();
   if (docs.isEmpty) return;
@@ -13,6 +17,10 @@ Future<void> uploadToTopic(BuildContext context, String topicId) async {
 /// Bottom sheet to choose a topic (or create one) before uploading.
 Future<void> pickTopicAndUpload(BuildContext context) async {
   final s = AppState.read(context);
+  if (!s.useMocks && !s.embeddingEngine.isLoaded) {
+    await Navigator.pushNamed(context, Routes.models);
+    if (!context.mounted || !s.embeddingEngine.isLoaded) return;
+  }
   if (s.topics.isEmpty) {
     Navigator.pushNamed(context, Routes.create);
     return;

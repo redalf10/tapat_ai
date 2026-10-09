@@ -5,6 +5,7 @@ import 'package:tapat_ai/const/app_common.dart';
 import 'package:tapat_ai/const/app_route.dart';
 import 'package:tapat_ai/domain/models/doc_model.dart';
 import 'package:tapat_ai/domain/models/ingest_progress.dart';
+import 'package:tapat_ai/domain/models/topic_model.dart';
 import 'package:tapat_ai/provider/actions.dart';
 import 'package:tapat_ai/provider/app_provider.dart';
 
@@ -18,13 +19,14 @@ class _CreateTopicState extends State<CreateTopicScreen> {
   final _name = TextEditingController();
   final _desc = TextEditingController();
   int _icon = 0;
+  String _category = 'Personal';
 
   @override
   void dispose() { _name.dispose(); _desc.dispose(); super.dispose(); }
 
   void _create() {
     final s = AppState.read(context);
-    final t = s.createTopic(_name.text.trim(), _desc.text.trim(), _icon);
+    final t = s.createTopic(_name.text.trim(), _desc.text.trim(), _icon, category: _category);
     Navigator.pushReplacementNamed(context, Routes.detail, arguments: t.id);
   }
 
@@ -45,6 +47,13 @@ class _CreateTopicState extends State<CreateTopicScreen> {
         const SizedBox(height: 6),
         TextField(controller: _desc, maxLines: 3,
             decoration: const InputDecoration(hintText: 'What is this knowledge base about?')),
+        const SizedBox(height: 16),
+        DropdownButtonFormField<String>(
+          initialValue: _category,
+          decoration: const InputDecoration(labelText: 'Category'),
+          items: [for (final category in ['Education', 'Work', 'Personal']) DropdownMenuItem(value: category, child: Text(category))],
+          onChanged: (value) { if (value != null) setState(() => _category = value); },
+        ),
         const SizedBox(height: 16),
         Text('Icon', style: label),
         const SizedBox(height: 8),
@@ -80,6 +89,7 @@ class _UploadProcessingState extends State<UploadProcessingScreen> {
   StreamSubscription<IngestProgress>? _sub;
   IngestProgress _p = const IngestProgress(0, 0);
   bool _done = false;
+  String? _error;
 
   @override
   void initState() {
@@ -92,6 +102,8 @@ class _UploadProcessingState extends State<UploadProcessingScreen> {
         s.addDocs(widget.args.topicId, widget.args.docs);
         setState(() => _done = true);
       }
+    }, onError: (Object error) {
+      if (mounted) setState(() => _error = error.toString());
     });
   }
 
@@ -150,10 +162,10 @@ class _UploadProcessingState extends State<UploadProcessingScreen> {
           ),
         ),
         const SizedBox(height: 12),
-        Text(_done ? 'All done!' : 'Please wait...\nThis may take a few minutes.',
+        Text(_error ?? (_done ? 'All done!' : 'Please wait...\nThis may take a few minutes.'),
             textAlign: TextAlign.center, style: TextStyle(color: hint, fontSize: 12)),
         const SizedBox(height: 24),
-        _done
+        _done || _error != null
             ? GradientButton(label: 'Done', onPressed: () => Navigator.pop(context))
             : SoftButton(label: 'Cancel', onPressed: () => Navigator.pop(context)),
       ]),
@@ -177,12 +189,16 @@ class KnowledgeDetailScreen extends StatelessWidget {
         actions: [
           PopupMenuButton<String>(
             onSelected: (v) {
+              if (v == 'edit') _editTopic(context, t, s);
               if (v == 'delete') {
                 Navigator.pop(context);
                 s.deleteTopic(topicId);
               }
             },
-            itemBuilder: (_) => const [PopupMenuItem(value: 'delete', child: Text('Delete knowledge base'))],
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'edit', child: Text('Edit knowledge base')),
+              PopupMenuItem(value: 'delete', child: Text('Delete knowledge base')),
+            ],
           ),
         ],
       ),
@@ -216,11 +232,53 @@ class KnowledgeDetailScreen extends StatelessWidget {
             title: Text(d.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
             subtitle: Text('${d.chunks} chunks', style: const TextStyle(fontSize: 12)),
             trailing: PopupMenuButton<String>(
-              onSelected: (_) => s.removeDoc(t.id, d.id),
-              itemBuilder: (_) => const [PopupMenuItem(value: 'remove', child: Text('Remove'))],
+              onSelected: (value) {
+                if (value == 'remove') s.removeDoc(t.id, d.id);
+                if (value == 'move') _moveDocument(context, t.id, d.id, s);
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(value: 'move', child: Text('Move to another topic')),
+                PopupMenuItem(value: 'remove', child: Text('Remove')),
+              ],
             ),
           ),
       ]),
     );
+  }
+
+  Future<void> _editTopic(BuildContext context, Topic topic, AppState state) async {
+    final name = TextEditingController(text: topic.name);
+    final description = TextEditingController(text: topic.description);
+    var category = topic.category;
+    await showDialog<void>(context: context, builder: (dialogContext) => StatefulBuilder(builder: (context, setDialogState) => AlertDialog(
+      title: const Text('Edit knowledge base'),
+      content: Column(mainAxisSize: MainAxisSize.min, children: [
+        TextField(controller: name, decoration: const InputDecoration(labelText: 'Name')),
+        TextField(controller: description, decoration: const InputDecoration(labelText: 'Description')),
+        DropdownButtonFormField<String>(initialValue: category, decoration: const InputDecoration(labelText: 'Category'),
+          items: [for (final c in ['Education', 'Work', 'Personal']) DropdownMenuItem(value: c, child: Text(c))],
+          onChanged: (value) { if (value != null) setDialogState(() => category = value); }),
+      ]),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+        FilledButton(onPressed: () {
+          if (name.text.trim().isEmpty) return;
+          state.updateTopic(topic.id, name: name.text.trim(), description: description.text.trim(), category: category, iconIndex: topic.iconIndex);
+          Navigator.pop(dialogContext);
+        }, child: const Text('Save')),
+      ],
+    )));
+    name.dispose();
+    description.dispose();
+  }
+
+  Future<void> _moveDocument(BuildContext context, String currentTopicId, String documentId, AppState state) async {
+    final targetId = await showModalBottomSheet<String>(context: context, showDragHandle: true,
+      builder: (_) => SafeArea(child: ListView(shrinkWrap: true, children: [
+        const ListTile(title: Text('Move document to')),
+        for (final topic in state.topics.where((t) => t.id != currentTopicId))
+          ListTile(title: Text(topic.name), subtitle: Text(topic.category), onTap: () => Navigator.pop(context, topic.id)),
+      ])));
+    if (targetId != null) state.moveDocument(documentId, targetId);
   }
 }
