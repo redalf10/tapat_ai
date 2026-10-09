@@ -34,9 +34,9 @@ class BrandLogo extends StatelessWidget {
   const BrandLogo({super.key, this.size = 90});
   final double size;
   @override
-  Widget build(BuildContext context) => ShaderMask(
-        shaderCallback: (r) => AppColors.gradient.createShader(r),
-        child: Icon(Icons.psychology_outlined, size: size, color: Colors.white),
+  Widget build(BuildContext context) => ClipRRect(
+        borderRadius: BorderRadius.circular(size / 2),
+        child: Image.asset('assets/logo.png', width: size, height: size),
       );
 }
 
