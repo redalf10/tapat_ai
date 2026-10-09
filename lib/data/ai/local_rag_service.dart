@@ -58,17 +58,33 @@ class LocalRagService implements RagService {
     }
     final context = <String>[];
     final sources = <SourceRef>[];
+    final boundedQuestion = _truncateUtf8(question.trim(), 700);
+    // Reserve space for the chat template, system instruction, and answer in
+    // the model's 2,048-token context. UTF-8 bytes are a conservative estimate
+    // for prompt length and prevent five full chunks from overflowing it.
+    var contextBudget = 1200 - utf8.encode(boundedQuestion).length - 100;
     for (final hit in found) {
       final docName = hit.chunk.document.target?.name ?? 'Document';
-      context.add('$docName, page ${hit.chunk.pageNumber}: ${hit.chunk.text}');
+      final header = '$docName, page ${hit.chunk.pageNumber}: ';
+      final headerBytes = utf8.encode(header).length;
+      if (contextBudget <= headerBytes + 20) break;
+      final excerpt = _truncateUtf8(hit.chunk.text, contextBudget - headerBytes).trim();
+      if (excerpt.isEmpty) continue;
+      context.add('$header$excerpt');
+      contextBudget -= headerBytes + utf8.encode(excerpt).length;
       sources.add(SourceRef(docName, hit.chunk.pageNumber));
     }
-    final history = repositories.chats.forTopic(entity.id).take(10).map((row) =>
-      '${row.isUser ? 'user' : 'assistant'}: ${row.text}').toList(growable: false);
-    final modelName = repositories.models.active('llm')?.name ?? 'Qwen ChatML';
-    final prompt = PromptBuilder.build(modelName: modelName, question: question, context: context, history: history);
+    if (context.isEmpty) {
+      yield const RagStreamEvent.complete(Message("I couldn't find that in your documents.", false));
+      return;
+    }
+    final prompt = PromptBuilder.buildUserMessage(question: boundedQuestion, context: context);
     final output = StringBuffer();
-    await for (final token in llm.generate(prompt)) {
+    await for (final token in llm.generate(
+      prompt,
+      systemPrompt: PromptBuilder.systemPrompt,
+      params: const GenParams(maxTokens: 384),
+    )) {
       output.write(token);
       yield RagStreamEvent.token(token);
     }
@@ -78,6 +94,20 @@ class LocalRagService implements RagService {
     final unique = <String, SourceRef>{for (final ref in sources) '${ref.docName}:${ref.page}': ref};
     yield RagStreamEvent.complete(Message(answer, false, unique.values.toList(growable: false)));
   }
+}
+
+String _truncateUtf8(String value, int maxBytes) {
+  if (maxBytes <= 0) return '';
+  final output = StringBuffer();
+  var bytes = 0;
+  for (final rune in value.runes) {
+    final character = String.fromCharCode(rune);
+    final length = utf8.encode(character).length;
+    if (bytes + length > maxBytes) break;
+    output.write(character);
+    bytes += length;
+  }
+  return output.toString();
 }
 
 TopicEntity createTopicEntity({required String uuid, required String name, required String description,

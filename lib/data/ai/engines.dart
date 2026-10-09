@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -18,13 +19,12 @@ Future<LlamaEngine> _spawnEngine({required ModelParams modelParams, required Con
         : LlamaEngine.spawn(modelParams: modelParams, contextParams: contextParams);
 
 String embeddingModelIndexId(ModelEntity model) {
-  final isBge = '${model.name} ${model.repoId}'.toLowerCase().contains('bge');
-  return '${model.uuid}:${isBge ? 'bge-cls-v1' : 'mean-v1'}';
+  return '${model.uuid}:auto-byte480-v1';
 }
 
 abstract interface class LlmEngine {
   Future<void> load(ModelEntity model);
-  Stream<String> generate(String prompt, {GenParams params = const GenParams()});
+  Stream<String> generate(String prompt, {String? systemPrompt, GenParams params = const GenParams()});
   Future<void> stop();
   Future<void> unload();
 }
@@ -40,8 +40,8 @@ abstract interface class EmbeddingEngine {
 
 class OnDeviceLlamaEngine implements LlmEngine {
   LlamaEngine? _engine;
-  EngineSession? _session;
-  bool get isLoaded => _session != null;
+  EngineChat? _chat;
+  bool get isLoaded => _chat != null;
 
   @override
   Future<void> load(ModelEntity model) async {
@@ -52,37 +52,43 @@ class OnDeviceLlamaEngine implements LlmEngine {
       contextParams: ContextParams.mobile(nCtx: 2048, nBatch: 128, nUbatch: 128),
     );
     _engine = llm;
-    _session = await llm.createSession();
+    _chat = await llm.createChat();
   }
 
   @override
-  Stream<String> generate(String prompt, {GenParams params = const GenParams()}) async* {
-    final session = _session;
-    if (session == null) throw StateError('Load an active local language model first.');
-    await for (final event in session.generate(
-      prompt: prompt,
+  Stream<String> generate(String prompt, {String? systemPrompt, GenParams params = const GenParams()}) async* {
+    final chat = _chat;
+    if (chat == null) throw StateError('Load an active local language model first.');
+    chat.clearHistory();
+    if (systemPrompt != null && systemPrompt.isNotEmpty) chat.addSystem(systemPrompt);
+    chat.addUser(prompt);
+    await for (final event in chat.generate(
       sampler: SamplerParams(temperature: params.temperature, topP: params.topP),
       maxTokens: params.maxTokens.clamp(1, 1024),
       shiftPolicy: _engine!.canShift ? ContextShiftPolicy.auto : ContextShiftPolicy.off,
     )) {
       if (event case TokenEvent(:final text)) yield text;
-      if (event is DoneEvent) break;
+      if (event case DoneEvent(:final trailingText)) {
+        if (trailingText.isNotEmpty) yield trailingText;
+        break;
+      }
     }
   }
 
   @override
   Future<void> stop() async {
     final engine = _engine;
-    final session = _session;
-    if (engine == null || session == null) return;
-    await session.dispose();
-    _session = await engine.createSession();
+    final chat = _chat;
+    if (engine == null || chat == null) return;
+    _chat = null;
+    await chat.dispose();
+    _chat = await engine.createChat();
   }
 
   @override
   Future<void> unload() async {
-    await _session?.dispose();
-    _session = null;
+    await _chat?.dispose();
+    _chat = null;
     await _engine?.dispose();
     _engine = null;
   }
@@ -91,7 +97,7 @@ class OnDeviceLlamaEngine implements LlmEngine {
 class OnDeviceEmbeddingEngine implements EmbeddingEngine {
   LlamaEngine? _engine;
   int _dimensions = 0;
-  bool _bgePrefix = false;
+  final _cache = <String, List<double>>{};
   @override
   String? modelId;
   @override
@@ -102,18 +108,16 @@ class OnDeviceEmbeddingEngine implements EmbeddingEngine {
   Future<void> load(ModelEntity model) async {
     await unload();
     if (!File(model.localPath).existsSync()) throw StateError('The selected embedding model file is missing.');
-    final isBge = '${model.name} ${model.repoId}'.toLowerCase().contains('bge');
     final engine = await _spawnEngine(
       modelParams: ModelParams(path: model.localPath, gpuLayers: 0),
-      contextParams: ContextParams(
-        nCtx: 512, nBatch: 128, nUbatch: 128, nSeqMax: 8,
-        embeddings: true, poolingType: isBge ? PoolingType.cls : PoolingType.mean,
+      contextParams: const ContextParams(
+        nCtx: 512, nBatch: 512, nUbatch: 512, nSeqMax: 1, nThreads: 4,
+        embeddings: true, poolingType: PoolingType.auto,
         attentionType: AttentionType.nonCausal,
       ),
     );
     _engine = engine;
     modelId = embeddingModelIndexId(model);
-    _bgePrefix = isBge;
     final probe = await engine.embed('dimension probe');
     _dimensions = probe.nEmbd;
     if (!probe.pooled || _dimensions <= 0) {
@@ -135,20 +139,51 @@ class OnDeviceEmbeddingEngine implements EmbeddingEngine {
     final engine = _engine;
     if (engine == null) throw StateError('Load an active embedding model first.');
     final vectors = <List<double>>[];
-    for (var i = 0; i < texts.length; i += 8) {
-      final end = (i + 8).clamp(0, texts.length);
-      final batch = texts.sublist(i, end).map((text) =>
-        _bgePrefix ? 'Represent this sentence for searching relevant passages: $text' : text).toList();
-      late final List<EmbeddingResult> results;
-      try {
-        results = await engine.embedBatch(batch, normalize: true);
-      } catch (error) {
-        throw StateError('The embedding engine failed on chunk batch ${i + 1}–$end. The text may exceed the model context or the model may not support embedding: $error');
+    for (var i = 0; i < texts.length; i++) {
+      final text = texts[i];
+      final cached = _cache[text];
+      if (cached != null) {
+        vectors.add(List<double>.of(cached));
+        continue;
       }
-      if (results.any((result) => !result.pooled || result.nEmbd != _dimensions)) {
-        throw StateError('Embedding output dimension changed. Re-index documents before continuing.');
+
+      final passages = <String>[];
+      var passage = StringBuffer();
+      var bytes = 0;
+      for (final rune in text.runes) {
+        final character = String.fromCharCode(rune);
+        final length = utf8.encode(character).length;
+        if (bytes + length > 480) {
+          passages.add(passage.toString());
+          passage = StringBuffer();
+          bytes = 0;
+        }
+        passage.write(character);
+        bytes += length;
       }
-      vectors.addAll(results.map((result) => result.vector.map((e) => e.toDouble()).toList(growable: false)));
+      if (passage.isNotEmpty) passages.add(passage.toString());
+      if (passages.isEmpty) {
+        throw StateError('Cannot embed an empty text chunk.');
+      }
+
+      final sum = List<double>.filled(_dimensions, 0);
+      for (var partIndex = 0; partIndex < passages.length; partIndex++) {
+        try {
+          final result = await engine.embed(passages[partIndex]);
+          if (!result.pooled || result.nEmbd != _dimensions || result.vector.length != _dimensions) {
+            throw StateError('Embedding output dimension changed.');
+          }
+          for (var j = 0; j < _dimensions; j++) {
+            sum[j] += result.vector[j] * result.nTokens;
+          }
+        } catch (error) {
+          throw StateError('Embedding failed on chunk ${i + 1} of ${texts.length}, passage ${partIndex + 1} of ${passages.length}: $error');
+        }
+      }
+      final vector = normalizeVector(sum);
+      if (_cache.length >= 64) _cache.remove(_cache.keys.first);
+      _cache[text] = vector;
+      vectors.add(List<double>.of(vector));
     }
     return vectors;
   }
@@ -159,10 +194,20 @@ class OnDeviceEmbeddingEngine implements EmbeddingEngine {
     _engine = null;
     _dimensions = 0;
     modelId = null;
+    _cache.clear();
   }
 }
 
 class PromptBuilder {
+  static const systemPrompt = 'Answer from the supplied document context. If the context does not contain the answer, say: "I couldn\'t find that in your documents." Cite relevant sources using [1], [2], etc.';
+
+  /// Builds plain user content; llama.cpp applies the template embedded in the
+  /// selected GGUF through EngineChat.
+  static String buildUserMessage({required String question, required List<String> context}) {
+    final joinedContext = [for (var i = 0; i < context.length; i++) '[${i + 1}] ${context[i]}'].join('\n\n');
+    return 'DOCUMENT CONTEXT:\n$joinedContext\n\nQUESTION:\n$question';
+  }
+
   static String build({required String modelName, required String question,
     required List<String> context, required List<String> history}) {
     final family = modelName.toLowerCase();
