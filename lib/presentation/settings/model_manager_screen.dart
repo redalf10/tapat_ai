@@ -24,6 +24,7 @@ class _ModelManagerScreenState extends State<ModelManagerScreen> {
   String? _working;
   String? _error;
   double? _reindexProgress;
+  bool get _modelsLocked => _busy || AppState.read(context).isGenerating;
 
   @override
   void initState() {
@@ -75,6 +76,7 @@ class _ModelManagerScreenState extends State<ModelManagerScreen> {
 
   Future<void> _activate(ModelEntity model) async {
     final state = AppState.read(context);
+    if (state.isGenerating) return;
     setState(() { _busy = true; _working = 'Loading ${model.name}'; _error = null; });
     try {
       if (model.kind == 'llm') {
@@ -96,6 +98,7 @@ class _ModelManagerScreenState extends State<ModelManagerScreen> {
 
   Future<void> _delete(ModelEntity model) async {
     final state = AppState.read(context);
+    if (state.isGenerating) return;
     final file = File(model.localPath);
     if (file.existsSync()) await file.delete();
     if (!mounted) return;
@@ -112,6 +115,7 @@ class _ModelManagerScreenState extends State<ModelManagerScreen> {
 
   Future<void> _reindex() async {
     final state = AppState.read(context);
+    if (state.isGenerating) return;
     setState(() { _busy = true; _working = 'Re-indexing documents'; _reindexProgress = 0; _error = null; });
     try {
       await for (final progress in ReindexEmbeddingsUseCase(state.repositories, state.embeddingEngine).call()) {
@@ -144,6 +148,10 @@ class _ModelManagerScreenState extends State<ModelManagerScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Local AI Models')),
       body: ListView(padding: const EdgeInsets.all(16), children: [
+        if (state.isGenerating) ...[
+          const AppCard(child: Text('Local AI is answering in the background. Model changes and re-indexing will be available when it finishes.')),
+          const SizedBox(height: 12),
+        ],
         AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           const Text('Your models stay on this device', style: TextStyle(fontWeight: FontWeight.w700)),
           const SizedBox(height: 6),
@@ -195,8 +203,8 @@ class _ModelManagerScreenState extends State<ModelManagerScreen> {
         Text(model.name, style: const TextStyle(fontWeight: FontWeight.w600)),
         Text('${model.kind} · ${_size(model.sizeBytes)}${model.isActive ? ' · Active' : ''}', style: const TextStyle(fontSize: 11)),
       ])),
-      if (!model.isActive) TextButton(onPressed: _busy ? null : () => _activate(model), child: const Text('Use')),
-      if (_needsReindex(model)) TextButton(onPressed: _busy ? null : _reindex, child: const Text('Re-index')),
-      PopupMenuButton<String>(onSelected: (v) { if (v == 'delete') _delete(model); }, itemBuilder: (_) => const [PopupMenuItem(value: 'delete', child: Text('Delete'))]),
+      if (!model.isActive) TextButton(onPressed: _modelsLocked ? null : () => _activate(model), child: const Text('Use')),
+      if (_needsReindex(model)) TextButton(onPressed: _modelsLocked ? null : _reindex, child: const Text('Re-index')),
+      PopupMenuButton<String>(enabled: !_modelsLocked, onSelected: (v) { if (v == 'delete') _delete(model); }, itemBuilder: (_) => const [PopupMenuItem(value: 'delete', child: Text('Delete'))]),
     ])));
 }
