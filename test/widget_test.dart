@@ -25,6 +25,7 @@ import 'package:tapat_ai/domain/models/topic_model.dart';
 import 'package:tapat_ai/presentation/chat/chat_screen.dart';
 import 'package:tapat_ai/presentation/topic/topic_screen.dart';
 import 'package:tapat_ai/presentation/topic/document_editor_screen.dart';
+import 'package:tapat_ai/presentation/onboarding/onboarding_screen.dart';
 import 'package:tapat_ai/provider/app_provider.dart';
 
 void main() {
@@ -570,6 +571,70 @@ void main() {
     await rag.streams.single.close();
     await Future<void>.delayed(Duration.zero);
     expect(state.chatOf(topic.id).length, 1);
+  });
+
+  testWidgets('onboarding screen displays 3 pages with exact design and finishes', (tester) async {
+    final state = await _createMemoryState(_ControlledRag());
+    state.onboarded = false;
+    await tester.pumpWidget(AppScope(
+      notifier: state,
+      child: MaterialApp(
+        onGenerateRoute: AppRouter.generate,
+        home: const OnboardingScreen(),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    // Page 1
+    expect(find.text('Skip'), findsOneWidget);
+    expect(find.text('Your Documents,'), findsOneWidget);
+    expect(find.text('Your AI'), findsOneWidget);
+    expect(find.text('Upload your own documents and create a private knowledge base that works offline.'), findsOneWidget);
+    expect(find.text('PDF'), findsOneWidget);
+    expect(find.text('TXT'), findsOneWidget);
+    expect(find.text('DOCX'), findsOneWidget);
+    expect(find.byIcon(Icons.arrow_forward_rounded), findsOneWidget);
+
+    // Advance to Page 2
+    await tester.tap(find.byIcon(Icons.arrow_forward_rounded));
+    await tester.pumpAndSettle();
+    expect(find.text('Ask Anything'), findsOneWidget);
+    expect(find.text('From Your Knowledge'), findsOneWidget);
+    expect(find.text('What is TCP?'), findsOneWidget);
+    expect(find.text('Networking Basics.pdf'), findsOneWidget);
+    expect(find.text('Page 18'), findsOneWidget);
+
+    // Advance to Page 3
+    await tester.tap(find.byIcon(Icons.arrow_forward_rounded));
+    await tester.pumpAndSettle();
+    expect(find.text('Tap an Object.'), findsOneWidget);
+    expect(find.text('Open Its Knowledge.'), findsOneWidget);
+    expect(find.text('NFC Tag'), findsOneWidget);
+    expect(find.text('RAG: networking-001'), findsOneWidget);
+    expect(find.text('Open Knowledge'), findsOneWidget);
+    expect(find.text('Get Started'), findsOneWidget);
+
+    // Tap Get Started finishes onboarding
+    await tester.tap(find.text('Get Started'));
+    await _pumpNavigation(tester);
+    expect(state.onboarded, isTrue);
+  });
+
+  testWidgets('onboarding screen Skip button marks onboarding complete', (tester) async {
+    final state = await _createMemoryState(_ControlledRag());
+    state.onboarded = false;
+    await tester.pumpWidget(AppScope(
+      notifier: state,
+      child: MaterialApp(
+        onGenerateRoute: AppRouter.generate,
+        home: const OnboardingScreen(),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Skip'));
+    await _pumpNavigation(tester);
+    expect(state.onboarded, isTrue);
   });
 }
 
