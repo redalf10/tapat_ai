@@ -279,7 +279,14 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-  Stream<IngestProgress> ingestDocuments(Topic topic, List<Doc> docs) => _trackIndexing(rag.ingest(topic, docs));
+  Stream<IngestProgress> ingestDocuments(Topic topic, List<Doc> docs) async* {
+    if (!await ensureEmbeddingModelLoaded()) {
+      throw StateError(
+        engineError ?? 'Load a supported embedding model in Local AI Models before indexing.',
+      );
+    }
+    yield* _trackIndexing(rag.ingest(topic, docs));
+  }
   Stream<IngestProgress> indexDocument(String documentId) => _trackIndexing(_documentIngest.indexSaved(documentId));
   Stream<IngestProgress> reindexDocuments() => _trackIndexing(ReindexEmbeddingsUseCase(repositories, embeddingEngine).call());
 
@@ -566,7 +573,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
 
   void modelCatalogChanged() => notifyListeners();
 
-  Future<void> _runModelOperation(Future<void> Function() operation) {
+  Future<T> _runModelOperation<T>(Future<T> Function() operation) {
     final result = _modelWork.then((_) => operation());
     _modelWork = result.then<void>((_) {}, onError: (Object _, StackTrace _) {});
     return result;
@@ -590,6 +597,41 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       });
     } catch (e) { engineError = e.toString(); }
     if (!_disposed) notifyListeners();
+  }
+
+  Future<bool> ensureEmbeddingModelLoaded() async {
+    if (embeddingEngine.isLoaded && embeddingEngine.dimensions == 384) {
+      return true;
+    }
+    try {
+      final ready = await _runModelOperation(() async {
+        if (_disposed || _isBackgrounded) return false;
+        final embedding = repositories.models.active('embedding');
+        if (embedding == null) {
+          engineError = 'Choose and activate a supported embedding model in Local AI Models.';
+          return false;
+        }
+        if (!File(embedding.localPath).existsSync()) {
+          engineError = 'The active embedding model file is missing. Choose or import it again in Local AI Models.';
+          return false;
+        }
+        if (!embeddingEngine.isLoaded) await embeddingEngine.load(embedding);
+        if (embeddingEngine.dimensions != 384) {
+          final dimensions = embeddingEngine.dimensions;
+          await embeddingEngine.unload();
+          engineError = 'The active embedding model returned $dimensions dimensions; this index requires 384.';
+          return false;
+        }
+        engineError = null;
+        return true;
+      });
+      return ready;
+    } catch (error) {
+      engineError = error.toString();
+      return false;
+    } finally {
+      if (!_disposed) notifyListeners();
+    }
   }
 
   Future<void> _unloadIdleModels() => _runModelOperation(() async {

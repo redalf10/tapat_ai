@@ -63,6 +63,12 @@ Future<void> uploadToTopic(BuildContext context, String topicId) async {
   final nav = Navigator.of(context);
   final docs = await s.picker.pick();
   if (docs.isEmpty) return;
+  if (!s.useMocks && !await s.ensureEmbeddingModelLoaded()) {
+    if (context.mounted) {
+      snack(context, s.engineError ?? 'Load a supported embedding model before uploading documents.');
+    }
+    return;
+  }
   nav.pushNamed(Routes.processing, arguments: ProcessingArgs(topicId, docs));
 }
 
