@@ -1,29 +1,77 @@
-// // This is a basic Flutter widget test.
-// //
-// // To perform an interaction with a widget in your test, use the WidgetTester
-// // utility in the flutter_test package. For example, you can send tap and scroll
-// // gestures. You can also use WidgetTester to find child widgets in the widget
-// // tree, read text, and verify that the values of widget properties are correct.
+import 'dart:io';
 
-// import 'package:flutter/material.dart';
-// import 'package:flutter_test/flutter_test.dart';
-// import 'package:tapat_ai/app.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tapat_ai/const/app_route.dart';
+import 'package:tapat_ai/core/services/mock_service.dart';
+import 'package:tapat_ai/data/ai/engines.dart';
+import 'package:tapat_ai/data/objectbox_store.dart';
+import 'package:tapat_ai/data/repositories.dart';
+import 'package:tapat_ai/domain/models/doc_model.dart';
+import 'package:tapat_ai/presentation/chat/chat_screen.dart';
+import 'package:tapat_ai/presentation/topic/topic_screen.dart';
+import 'package:tapat_ai/provider/app_provider.dart';
 
-// void main() {
-//   testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-//     // Build our app and trigger a frame.
-//     await tester.pumpWidget(const TapatApp());
+void main() {
+  testWidgets('chat screen displays the selected topic and input', (tester) async {
+    final fixture = await _createFixture();
+    addTearDown(() async {
+      fixture.state.dispose();
+      fixture.store.store.close();
+    });
+    final topic = fixture.state.createTopic('Study Notes', '', 0);
+    await tester.pumpWidget(AppScope(
+      notifier: fixture.state,
+      child: MaterialApp(home: ChatScreen(topicId: topic.id)),
+    ));
+    expect(find.text('Study Notes'), findsOneWidget);
+    expect(find.byType(TextField), findsOneWidget);
+  }, skip: Platform.isWindows);
 
-//     // Verify that our counter starts at 0.
-//     expect(find.text('0'), findsOneWidget);
-//     expect(find.text('1'), findsNothing);
+  testWidgets('processing screen shows the five ingestion stages and progress', (tester) async {
+    final fixture = await _createFixture();
+    addTearDown(() async {
+      fixture.state.dispose();
+      fixture.store.store.close();
+    });
+    final topic = fixture.state.createTopic('Study Notes', '', 0);
+    final doc = Doc('doc-1', 'notes.txt', DocType.txt, 3, .1);
+    await tester.pumpWidget(AppScope(
+      notifier: fixture.state,
+      child: MaterialApp(home: UploadProcessingScreen(
+        args: ProcessingArgs(topic.id, [doc]),
+      )),
+    ));
+    await tester.pump();
+    expect(find.text('Extracting text...'), findsOneWidget);
+    expect(find.text('Creating text chunks...'), findsOneWidget);
+    expect(find.text('Generating embeddings...'), findsOneWidget);
+    expect(find.text('Saving to local database...'), findsOneWidget);
+    expect(find.text('Completed'), findsOneWidget);
+  }, skip: Platform.isWindows);
+}
 
-//     // Tap the '+' icon and trigger a frame.
-//     await tester.tap(find.byIcon(Icons.add));
-//     await tester.pump();
+Future<_Fixture> _createFixture() async {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  SharedPreferences.setMockInitialValues({});
+  final store = ObjectBoxStore.inMemory('widget-${DateTime.now().microsecondsSinceEpoch}');
+  final repositories = Repositories(store);
+  final state = AppState(
+    rag: MockRagService(),
+    nfc: MockNfcService(),
+    picker: MockDocumentPicker(),
+    prefs: await SharedPreferences.getInstance(),
+    repositories: repositories,
+    embeddingEngine: OnDeviceEmbeddingEngine(),
+    llmEngine: OnDeviceLlamaEngine(),
+    useMocks: true,
+  );
+  return _Fixture(store, state);
+}
 
-//     // Verify that our counter has incremented.
-//     expect(find.text('0'), findsNothing);
-//     expect(find.text('1'), findsOneWidget);
-//   });
-// }
+class _Fixture {
+  const _Fixture(this.store, this.state);
+  final ObjectBoxStore store;
+  final AppState state;
+}

@@ -1,0 +1,344 @@
+{
+  "_note1": "KEEP THIS FILE! Check it into a version control system (VCS) like git.",
+  "_note2": "ObjectBox manages crucial IDs for your object model. See docs for details.",
+  "_note3": "If you have VCS merge conflicts, you must resolve them according to ObjectBox docs.",
+  "entities": [
+    {
+      "id": "1:6737961018691423622",
+      "lastPropertyId": "6:2516567131893338788",
+      "name": "ChatMessageEntity",
+      "properties": [
+        {
+          "id": "1:7691944923890808891",
+          "name": "id",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:4809638087497072681",
+          "name": "topicId",
+          "indexId": "1:785652801508983482",
+          "type": 11,
+          "flags": 520,
+          "relationTarget": "TopicEntity"
+        },
+        {
+          "id": "3:9177192458370206867",
+          "name": "text",
+          "type": 9
+        },
+        {
+          "id": "4:2093319426745688394",
+          "name": "isUser",
+          "type": 1
+        },
+        {
+          "id": "5:8172967214626988522",
+          "name": "sourcesJson",
+          "type": 9
+        },
+        {
+          "id": "6:2516567131893338788",
+          "name": "createdAt",
+          "type": 10
+        }
+      ],
+      "relations": []
+    },
+    {
+      "id": "2:7773285418227808295",
+      "lastPropertyId": "8:6309834124675333817",
+      "name": "ChunkEntity",
+      "properties": [
+        {
+          "id": "1:793204470697595391",
+          "name": "id",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:1003795137650079133",
+          "name": "documentId",
+          "indexId": "2:146882923296368734",
+          "type": 11,
+          "flags": 520,
+          "relationTarget": "DocumentEntity"
+        },
+        {
+          "id": "3:8052829267913481880",
+          "name": "topicId",
+          "indexId": "3:6694921578431953727",
+          "type": 11,
+          "flags": 520,
+          "relationTarget": "TopicEntity"
+        },
+        {
+          "id": "4:4884051529145437508",
+          "name": "text",
+          "type": 9
+        },
+        {
+          "id": "5:8579715914938522568",
+          "name": "pageNumber",
+          "type": 6
+        },
+        {
+          "id": "6:6022666159796462061",
+          "name": "chunkIndex",
+          "type": 6
+        },
+        {
+          "id": "7:8208046485054932079",
+          "name": "embeddingModelId",
+          "type": 9
+        },
+        {
+          "id": "8:6309834124675333817",
+          "name": "vector",
+          "indexId": "4:4845331490722803964",
+          "type": 28,
+          "flags": 8
+        }
+      ],
+      "relations": []
+    },
+    {
+      "id": "3:8222347767563289884",
+      "lastPropertyId": "12:7413860099284123178",
+      "name": "DocumentEntity",
+      "properties": [
+        {
+          "id": "1:344218089242029455",
+          "name": "id",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:316230646521734737",
+          "name": "uuid",
+          "indexId": "5:5129767606901929327",
+          "type": 9,
+          "flags": 2080
+        },
+        {
+          "id": "3:3645573379790760382",
+          "name": "topicId",
+          "indexId": "6:428904202111550861",
+          "type": 11,
+          "flags": 520,
+          "relationTarget": "TopicEntity"
+        },
+        {
+          "id": "4:5615970237355039506",
+          "name": "name",
+          "type": 9
+        },
+        {
+          "id": "5:5083537693362384676",
+          "name": "type",
+          "type": 9
+        },
+        {
+          "id": "6:4252165163123351783",
+          "name": "sizeBytes",
+          "type": 6
+        },
+        {
+          "id": "7:7258134034761669945",
+          "name": "path",
+          "type": 9
+        },
+        {
+          "id": "8:6107855677754132888",
+          "name": "pageCount",
+          "type": 6
+        },
+        {
+          "id": "9:3899325936350026548",
+          "name": "chunkCount",
+          "type": 6
+        },
+        {
+          "id": "10:9092452993354777738",
+          "name": "status",
+          "type": 9
+        },
+        {
+          "id": "11:2231518639355935142",
+          "name": "createdAt",
+          "type": 10
+        },
+        {
+          "id": "12:7413860099284123178",
+          "name": "contentSha256",
+          "type": 9
+        }
+      ],
+      "relations": []
+    },
+    {
+      "id": "4:8934789391569586383",
+      "lastPropertyId": "13:4635530556854970595",
+      "name": "ModelEntity",
+      "properties": [
+        {
+          "id": "1:4242976631845959375",
+          "name": "id",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:4851085419314560498",
+          "name": "uuid",
+          "indexId": "7:2446716876691235364",
+          "type": 9,
+          "flags": 2080
+        },
+        {
+          "id": "3:3897107457475005976",
+          "name": "name",
+          "type": 9
+        },
+        {
+          "id": "4:6223869740718339161",
+          "name": "kind",
+          "type": 9
+        },
+        {
+          "id": "5:3684248030181389320",
+          "name": "repoId",
+          "type": 9
+        },
+        {
+          "id": "6:3708596323855852942",
+          "name": "filename",
+          "type": 9
+        },
+        {
+          "id": "7:2674163790494774888",
+          "name": "localPath",
+          "type": 9
+        },
+        {
+          "id": "8:3580988796877494309",
+          "name": "sizeBytes",
+          "type": 6
+        },
+        {
+          "id": "9:4172597465638249990",
+          "name": "status",
+          "type": 9
+        },
+        {
+          "id": "10:1217299929628093883",
+          "name": "isActive",
+          "type": 1
+        },
+        {
+          "id": "11:1603071678138508968",
+          "name": "sha256",
+          "type": 9
+        },
+        {
+          "id": "12:1509937118587765814",
+          "name": "dimensions",
+          "type": 6
+        },
+        {
+          "id": "13:4635530556854970595",
+          "name": "license",
+          "type": 9
+        }
+      ],
+      "relations": []
+    },
+    {
+      "id": "5:8842377055169655081",
+      "lastPropertyId": "3:3469822871632870691",
+      "name": "SettingEntity",
+      "properties": [
+        {
+          "id": "1:8425875048980443192",
+          "name": "id",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:7182977540736854563",
+          "name": "key",
+          "indexId": "8:1791933781202867991",
+          "type": 9,
+          "flags": 2080
+        },
+        {
+          "id": "3:3469822871632870691",
+          "name": "value",
+          "type": 9
+        }
+      ],
+      "relations": []
+    },
+    {
+      "id": "6:9087363412720310107",
+      "lastPropertyId": "8:1372681681481630475",
+      "name": "TopicEntity",
+      "properties": [
+        {
+          "id": "1:4676836169047569834",
+          "name": "id",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:1746680860491171970",
+          "name": "uuid",
+          "indexId": "9:996878245076234993",
+          "type": 9,
+          "flags": 2080
+        },
+        {
+          "id": "3:663732524889825167",
+          "name": "name",
+          "type": 9
+        },
+        {
+          "id": "4:9005297686559779209",
+          "name": "description",
+          "type": 9
+        },
+        {
+          "id": "5:3867852049284330561",
+          "name": "category",
+          "type": 9
+        },
+        {
+          "id": "6:10996607896027669",
+          "name": "iconIndex",
+          "type": 6
+        },
+        {
+          "id": "7:7710840463913433049",
+          "name": "createdAt",
+          "type": 10
+        },
+        {
+          "id": "8:1372681681481630475",
+          "name": "nfcId",
+          "type": 9
+        }
+      ],
+      "relations": []
+    }
+  ],
+  "lastEntityId": "6:9087363412720310107",
+  "lastIndexId": "9:996878245076234993",
+  "lastRelationId": "0:0",
+  "lastSequenceId": "0:0",
+  "modelVersion": 5,
+  "modelVersionParserMinimum": 5,
+  "retiredEntityUids": [],
+  "retiredIndexUids": [],
+  "retiredPropertyUids": [],
+  "retiredRelationUids": [],
+  "version": 1
+}

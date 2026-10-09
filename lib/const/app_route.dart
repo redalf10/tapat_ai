@@ -3,6 +3,7 @@ import 'package:tapat_ai/domain/models/doc_model.dart';
 import 'package:tapat_ai/presentation/chat/chat_screen.dart';
 import 'package:tapat_ai/presentation/nfc/nfc_screen.dart';
 import 'package:tapat_ai/presentation/settings/settings_screen.dart';
+import 'package:tapat_ai/presentation/settings/model_manager_screen.dart';
 import 'package:tapat_ai/presentation/shell/shell_screen.dart';
 import 'package:tapat_ai/presentation/splashscreen/splash_screen.dart';
 import 'package:tapat_ai/presentation/topic/topic_screen.dart';
@@ -20,6 +21,7 @@ class Routes {
   static const nfcWrite = '/nfc/write'; // arg: topicId
   static const knowledge = '/knowledge';
   static const settings = '/settings';
+  static const models = '/settings/models';
 }
 
 class ProcessingArgs {
@@ -30,6 +32,10 @@ class ProcessingArgs {
 
 class AppRouter {
   static Route<dynamic> generate(RouteSettings s) {
+    final uri = Uri.tryParse(s.name ?? '');
+    if (uri?.scheme == 'tapat' && uri?.host == 'kb' && uri!.pathSegments.isNotEmpty) {
+      return generate(RouteSettings(name: Routes.nfcDetected, arguments: uri.pathSegments.first));
+    }
     final a = s.arguments;
     final Widget w = switch (s.name) {
       Routes.onboarding => const OnboardingScreen(),
@@ -43,6 +49,7 @@ class AppRouter {
       Routes.nfcWrite => NfcWriteScreen(topicId: a as String),
       Routes.knowledge => const KnowledgeBasesScreen(),
       Routes.settings => const SettingsScreen(),
+      Routes.models => const ModelManagerScreen(),
       _ => const SplashScreen(),
     };
     return PageRouteBuilder(

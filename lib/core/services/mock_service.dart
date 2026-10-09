@@ -6,10 +6,16 @@ import 'package:tapat_ai/core/services/rag_service.dart';
 import 'package:tapat_ai/domain/models/doc_model.dart';
 import 'package:tapat_ai/domain/models/ingest_progress.dart';
 import 'package:tapat_ai/domain/models/message_model.dart';
+import 'package:tapat_ai/domain/models/rag_stream_event.dart';
 import 'package:tapat_ai/domain/models/source_ref_model.dart';
 import 'package:tapat_ai/domain/models/topic_model.dart';
 
 class MockRagService implements RagService {
+  @override
+  Stream<RagStreamEvent> askStream(Topic topic, String question) async* {
+    yield RagStreamEvent.complete(await ask(topic, question));
+  }
+
   @override
   Stream<IngestProgress> ingest(Topic topic, List<Doc> docs) async* {
     final total = docs.fold<int>(0, (a, d) => a + d.chunks);
@@ -67,6 +73,9 @@ class MockNfcService implements NfcService {
     await Future.delayed(const Duration(seconds: 3));
     return true;
   }
+
+  @override
+  Future<bool> erase() async => true;
  
   @override
   void cancel() {
