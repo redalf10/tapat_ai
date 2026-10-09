@@ -44,6 +44,8 @@ class SettingsScreen extends StatelessWidget {
         _Group([
           _Item(Icons.memory, 'Local AI Models', 'Manage LLM and embedding models',
               () => Navigator.pushNamed(context, Routes.models)),
+          _Item(Icons.image_outlined, 'Image Generation', s.imageConfig.enabled ? 'Illustration service enabled · Diagrams stay local' : 'Local diagrams · Optional illustration service',
+              () => Navigator.pushNamed(context, Routes.images)),
           _Item(Icons.storage_outlined, 'Storage Usage', '${s.storageGb.toStringAsFixed(1)} GB used',
               () => _storageDialog(context, s)),
           _Item(Icons.nfc, 'NFC Settings', 'Availability, test read, format / erase', () => Navigator.push(context,
@@ -60,7 +62,8 @@ class SettingsScreen extends StatelessWidget {
               applicationIcon: const BrandLogo(size: 40),
               children: const [Text('Local RAG AI with NFC. Your knowledge. On your device.')])),
           _Item(Icons.help_outline, 'Help & Support', null, () => snack(context, 'support@tapat.ai')),
-          _Item(Icons.shield_outlined, 'Privacy', 'All data stays on your device', () => snack(context, 'Tapat AI never uploads your documents.')),
+          _Item(Icons.shield_outlined, 'Privacy', 'Local text and document search', () => snack(context,
+              'Text generation, documents and search stay on this device. If enabled, illustration prompts are sent to your configured image server and may reflect chat or document content.')),
           _Item(Icons.power_settings_new, 'Reset App', null, () async {
             if (await _confirm(context, 'Reset Tapat AI?', 'This restores defaults and replays onboarding.')) {
               await s.resetApp();

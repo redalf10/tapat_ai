@@ -25,6 +25,8 @@ class Repositories {
   final ChatRepository chats;
   final ModelRepository models;
   final SettingsRepository settings;
+
+  T write<T>(T Function() action) => store.store.runInTransaction(TxMode.write, action);
 }
 
 class TopicRepository {
@@ -441,7 +443,8 @@ class ChatRepository {
   final Box<ChatMessageEntity> _box;
   List<ChatMessageEntity> forTopic(int topicId) =>
       _find(_box.query(ChatMessageEntity_.topic.equals(topicId)).build())
-        ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        ..sort((a, b) => a.id.compareTo(b.id));
+  ChatMessageEntity? byId(int id) => _box.get(id);
   void add(ChatMessageEntity message) => _box.put(message);
   void remove(int id) => _box.remove(id);
   Stream<List<ChatMessageEntity>> watch(int topicId) => _box

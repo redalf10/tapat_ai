@@ -6,6 +6,8 @@ import 'package:tapat_ai/domain/models/message_model.dart';
 import 'package:tapat_ai/domain/models/source_ref_model.dart';
 import 'package:tapat_ai/const/app_route.dart';
 import 'package:tapat_ai/provider/app_provider.dart';
+import 'package:tapat_ai/domain/models/visual_model.dart';
+import 'visual_widget.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key, required this.topicId});
@@ -50,9 +52,8 @@ class _ChatState extends State<ChatScreen> {
     }
   });
 
-  bool _needsModels(AppState state) =>
-      !state.useMocks &&
-      (!state.embeddingEngine.isLoaded || !state.llmEngine.isLoaded);
+  bool _needsModels(AppState state, {String? question}) =>
+      !state.chatModelsReady(widget.topicId, question ?? _ctrl.text);
 
   void _send() {
     final question = _ctrl.text.trim();
@@ -74,7 +75,7 @@ class _ChatState extends State<ChatScreen> {
     final state = AppState.read(context);
     final question = state.lastQuestion(widget.topicId);
     if (question == null || state.isGenerating) return;
-    if (_needsModels(state)) {
+    if (_needsModels(state, question: question)) {
       Navigator.pushNamed(context, Routes.models);
       return;
     }
@@ -303,17 +304,18 @@ class _ChatState extends State<ChatScreen> {
           if (generatingElsewhere)
             MaterialBanner(
               content: Text(
-                'Local AI is answering in ${s.answeringTopic!.name}. Please wait before asking another question.',
+                s.answeringTopic == null
+                    ? '${s.localTaskLabel ?? 'Local AI is working'}. Please wait before asking another question.'
+                    : 'Local AI is answering in ${s.answeringTopic!.name}. Please wait before asking another question.',
               ),
               actions: [
-                TextButton(
-                  onPressed: () => Navigator.pushNamed(
-                    context,
-                    Routes.chat,
-                    arguments: s.answeringTopic!.id,
-                  ),
-                  child: const Text('View progress'),
-                ),
+                if (s.answeringTopic != null)
+                  TextButton(
+                    onPressed: () => Navigator.pushNamed(context, Routes.chat, arguments: s.answeringTopic!.id),
+                    child: const Text('View progress'),
+                  )
+                else
+                  TextButton(onPressed: () => Navigator.pushNamed(context, Routes.models), child: const Text('Local AI Models')),
               ],
             ),
           if (needsModels)
@@ -371,6 +373,14 @@ class _ChatState extends State<ChatScreen> {
                           : _Bubble(
                               msgs[i],
                               onSource: _showSource,
+                              onRegenerateVisual: s.isGenerating || s.isGeneratingVisual(msgs[i].id) || (msgs[i].visual?.request.isEmpty ?? true)
+                                  ? null : () => s.generateVisual(t.id, msgs[i].id),
+                              onCancelVisual: () async {
+                                try { await s.stopVisual(t.id, msgs[i].id); }
+                                catch (_) { if (mounted) messenger.showSnackBar(const SnackBar(content: Text('Could not stop visual generation. Wait for it to finish.'))); }
+                              },
+                              onConfigureVisual: () => Navigator.pushNamed(context,
+                                  msgs[i].visual?.kind == VisualKind.image ? Routes.images : Routes.models),
                               onCopy: () async {
                                 await Clipboard.setData(
                                   ClipboardData(text: msgs[i].text),
@@ -393,6 +403,7 @@ class _ChatState extends State<ChatScreen> {
                     child: TextField(
                       controller: _ctrl,
                       enabled: !generatingElsewhere,
+                      onChanged: (_) => setState(() {}),
                       onSubmitted: (_) => _send(),
                       textInputAction: TextInputAction.send,
                       decoration: InputDecoration(
@@ -436,10 +447,10 @@ class _ChatState extends State<ChatScreen> {
 }
 
 class _Bubble extends StatelessWidget {
-  const _Bubble(this.m, {this.onSource, this.onCopy});
+  const _Bubble(this.m, {this.onSource, this.onCopy, this.onRegenerateVisual, this.onCancelVisual, this.onConfigureVisual});
   final Message m;
   final ValueChanged<SourceRef>? onSource;
-  final VoidCallback? onCopy;
+  final VoidCallback? onCopy, onRegenerateVisual, onCancelVisual, onConfigureVisual;
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
@@ -459,7 +470,13 @@ class _Bubble extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (m.visual != null) ...[
+              Text('Explanation', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 6),
+            ],
             _FormattedMessage(m.text),
+            if (m.visual != null) ChatVisualCard(key: ValueKey('visual-${m.id}'), visual: m.visual!,
+              onRegenerate: onRegenerateVisual, onCancel: onCancelVisual, onConfigure: onConfigureVisual),
             if (m.sources.isNotEmpty) ...[
               const SizedBox(height: 14),
               Container(

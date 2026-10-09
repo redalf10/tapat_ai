@@ -8,6 +8,8 @@ import '../../domain/models/message_model.dart';
 import '../../domain/models/rag_stream_event.dart';
 import '../../domain/models/source_ref_model.dart';
 import '../../domain/models/topic_model.dart';
+import '../../domain/models/visual_model.dart';
+import 'local_text_service.dart';
 import '../entities/entities.dart';
 import '../file_ingestion.dart';
 import '../repositories.dart';
@@ -42,7 +44,7 @@ class LocalRagService implements RagService {
 
   @override
   Stream<RagStreamEvent> askStream(Topic topic, String question) async* {
-    final boundedQuestion = _truncateUtf8(
+    final boundedQuestion = LocalTextService.truncateUtf8(
       question.replaceAll(RegExp(r'\s+'), ' ').trim(),
       700,
     );
@@ -56,12 +58,9 @@ class LocalRagService implements RagService {
     final documents = repositories.documents.forTopic(entity.id);
     final index = repositories.chunks.indexForTopic(entity.id);
     if (documents.isEmpty || index.chunks.isEmpty) {
-      yield RagStreamEvent.complete(
-        Message(
-          'This knowledge base has no documents yet. Add one to get answers.',
-          false,
-        ),
-      );
+      yield* _withoutContext(boundedQuestion, documents.isEmpty
+          ? 'This knowledge base has no documents yet. Add one to get answers.'
+          : 'Your documents are saved but not indexed yet. Index a document to answer from it.', originalQuestion: question);
       return;
     }
     if (embedding.dimensions != 384) {
@@ -89,9 +88,7 @@ class LocalRagService implements RagService {
       8,
     );
     if (found.isEmpty) {
-      yield RagStreamEvent.complete(
-        Message("I couldn't find that in your documents.", false),
-      );
+      yield* _withoutContext(boundedQuestion, PromptBuilder.noAnswer, originalQuestion: question);
       return;
     }
     // Reserve space for the chat template, system instruction, and answer in
@@ -107,9 +104,7 @@ class LocalRagService implements RagService {
     final context = selected.context;
     final sources = selected.sources;
     if (context.isEmpty) {
-      yield RagStreamEvent.complete(
-        Message("I couldn't find that in your documents.", false),
-      );
+      yield* _withoutContext(boundedQuestion, PromptBuilder.noAnswer, originalQuestion: question);
       return;
     }
     final prompt = PromptBuilder.buildUserMessage(
@@ -143,20 +138,21 @@ class LocalRagService implements RagService {
       ),
     );
   }
-}
 
-String _truncateUtf8(String value, int maxBytes) {
-  if (maxBytes <= 0) return '';
-  final output = StringBuffer();
-  var bytes = 0;
-  for (final rune in value.runes) {
-    final character = String.fromCharCode(rune);
-    final length = utf8.encode(character).length;
-    if (bytes + length > maxBytes) break;
-    output.write(character);
-    bytes += length;
+  Stream<RagStreamEvent> _withoutContext(String question, String noContextMessage, {String? originalQuestion}) async* {
+    final request = originalQuestion ?? question;
+    final intent = VisualIntent.detect(request);
+    if (intent == null || !intent.explicit || VisualIntent.refersToDocuments(request)) {
+      yield RagStreamEvent.complete(Message(noContextMessage, false));
+      return;
+    }
+    final explanation = await LocalTextService(llm).generate(question,
+      systemPrompt: 'Explain the visual requested by the user using general knowledge. '
+          'Give a concise, useful textual explanation. Do not claim that an image has already been generated. '
+          'Do not cite or claim to use saved documents. State uncertainty instead of guessing unknown facts.',
+      params: const GenParams(maxTokens: 384, temperature: .3));
+    yield RagStreamEvent.complete(Message('General local-AI explanation (not based on indexed documents).\n\n$explanation', false));
   }
-  return output.toString();
 }
 
 class RagContext {
@@ -190,7 +186,7 @@ class RagContext {
     var slots = groups.length;
     for (final group in groups.entries) {
       final allocation = remaining ~/ slots--;
-      final name = _truncateUtf8(group.key.$1, 100);
+      final name = LocalTextService.truncateUtf8(group.key.$1, 100);
       final header = '$name, page ${group.key.$2}: ';
       final overhead = utf8.encode(header).length + 6;
       if (allocation <= overhead) continue;
@@ -215,7 +211,7 @@ String selectContextExcerpt(String value, String question, int maxBytes) {
   final text = value.trim();
   if (utf8.encode(text).length <= maxBytes) return text;
   final queryTerms = RetrievalText.terms(question).toSet();
-  if (queryTerms.isEmpty) return _truncateUtf8(text, maxBytes).trim();
+  if (queryTerms.isEmpty) return LocalTextService.truncateUtf8(text, maxBytes).trim();
   final words = RegExp(r'\S+\s*').allMatches(text).toList(growable: false);
   final lengths = [
     for (final word in words) utf8.encode(word.group(0)!).length,
@@ -277,7 +273,7 @@ String selectContextExcerpt(String value, String question, int maxBytes) {
   }
   return bestEnd > bestStart
       ? text.substring(words[bestStart].start, words[bestEnd - 1].end).trim()
-      : _truncateUtf8(text, maxBytes).trim();
+      : LocalTextService.truncateUtf8(text, maxBytes).trim();
 }
 
 TopicEntity createTopicEntity({
@@ -297,6 +293,7 @@ TopicEntity createTopicEntity({
 
 ChatMessageEntity toChatEntity(TopicEntity topic, Message message) =>
     ChatMessageEntity()
+      ..id = message.id
       ..topic.target = topic
       ..text = message.text
       ..isUser = message.isUser
@@ -305,7 +302,8 @@ ChatMessageEntity toChatEntity(TopicEntity topic, Message message) =>
             .map((s) => {'docName': s.docName, 'page': s.page})
             .toList(),
       )
-      ..createdAt = message.sentAt;
+      ..createdAt = message.sentAt
+      ..visualJson = message.visual?.encode() ?? '';
 
 Message fromChatEntity(ChatMessageEntity entity) {
   final raw = jsonDecode(entity.sourcesJson) as List<dynamic>;
@@ -316,5 +314,7 @@ Message fromChatEntity(ChatMessageEntity entity) {
         .map((v) => SourceRef(v['docName'] as String, v['page'] as int))
         .toList(growable: false),
     entity.createdAt,
+    entity.id,
+    ChatVisual.restore(entity.visualJson),
   );
 }

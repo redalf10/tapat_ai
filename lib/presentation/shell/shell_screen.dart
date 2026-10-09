@@ -92,7 +92,7 @@ class HomeTab extends StatelessWidget {
           _ActionCard('Scan NFC', 'Open a knowledge base by tapping an NFC tag.', Icons.sensors,
               const [Color(0xFF2563EB), Color(0xFF3B82F6)], () => Navigator.pushNamed(context, Routes.nfcScan)),
           const SizedBox(width: 12),
-          _ActionCard('Upload Document', 'Add new documents to your knowledge base.', Icons.upload_file,
+          _ActionCard('Add Document', 'Upload or create documents in your knowledge base.', Icons.note_add_outlined,
               const [Color(0xFF7C3AED), Color(0xFF9F67FF)], () => pickTopicAndUpload(context)),
         ]),
         const SizedBox(height: 24),
