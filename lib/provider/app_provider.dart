@@ -199,6 +199,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<void> unloadModels() async {
+    repositories.chunks.clearCache();
     await embeddingEngine.unload();
     await llmEngine.unload();
   }
@@ -246,6 +247,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   void dispose() {
     _topicWatch?.cancel();
     WidgetsBinding.instance.removeObserver(this);
+    repositories.chunks.clearCache();
     embeddingEngine.unload();
     llmEngine.unload();
     super.dispose();
