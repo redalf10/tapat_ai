@@ -60,8 +60,11 @@ class SettingsScreen extends StatelessWidget {
               () => Navigator.pushNamed(context, Routes.images)),
           _Item(Icons.storage_outlined, 'Storage Usage', '${s.storageGb.toStringAsFixed(1)} GB used',
               () => _storageDialog(context, s)),
-          _Item(Icons.nfc, 'NFC Settings', 'Availability, test read, format / erase', () => Navigator.push(context,
-              MaterialPageRoute<void>(builder: (_) => const NfcSettingsScreen()))),
+          _Item(Icons.nfc, 'NFC', s.nfcEnabled ? 'Enabled · NFC tools are shown in the app' : 'Disabled · Enable to show NFC tools', () {}, toggle: s.nfcEnabled,
+              onToggle: s.setNfcEnabled),
+          if (s.nfcEnabled)
+            _Item(Icons.tune, 'NFC Settings', 'Availability, test read, format / erase', () => Navigator.push(context,
+                MaterialPageRoute<void>(builder: (_) => const NfcSettingsScreen()))),
           _Item(Icons.light_mode_outlined, 'App Appearance', '${_themeNames[s.themeMode]}', () => _themeDialog(context, s)),
           _Item(Icons.folder_outlined, 'Data Management', 'Export, Backup, Delete', () async {
             await _dataManagement(context, s);
@@ -171,12 +174,14 @@ class SettingsScreen extends StatelessWidget {
 }
 
 class _Item {
-  const _Item(this.icon, this.title, this.sub, this.onTap, {this.danger = false});
+  const _Item(this.icon, this.title, this.sub, this.onTap, {this.danger = false, this.toggle, this.onToggle});
   final IconData icon;
   final String title;
   final String? sub;
   final VoidCallback onTap;
   final bool danger;
+  final bool? toggle;
+  final ValueChanged<bool>? onToggle;
 }
 
 class _Group extends StatelessWidget {
@@ -192,8 +197,10 @@ class _Group extends StatelessWidget {
               title: Text(items[i].title,
                   style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: items[i].danger ? Colors.red : null)),
               subtitle: items[i].sub == null ? null : Text(items[i].sub!, style: const TextStyle(fontSize: 12)),
-              trailing: items[i].danger ? null : const Icon(Icons.chevron_right, size: 20),
-              onTap: items[i].onTap,
+              trailing: items[i].toggle != null
+                  ? Switch(value: items[i].toggle!, onChanged: items[i].onToggle)
+                  : items[i].danger ? null : const Icon(Icons.chevron_right, size: 20),
+              onTap: items[i].toggle != null ? () => items[i].onToggle!(!items[i].toggle!) : items[i].onTap,
             ),
             if (i < items.length - 1) const Divider(height: 1, indent: 16, endIndent: 16),
           ],

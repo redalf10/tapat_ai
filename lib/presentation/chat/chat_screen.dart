@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:tapat_ai/const/app_color.dart';
 import 'package:tapat_ai/const/app_common.dart';
-import 'package:tapat_ai/const/app_glass.dart';
 import 'package:tapat_ai/domain/models/message_model.dart';
 import 'package:tapat_ai/domain/models/source_ref_model.dart';
 import 'package:tapat_ai/const/app_route.dart';
@@ -258,7 +258,6 @@ class _ChatState extends State<ChatScreen> {
     final generatingElsewhere = s.isGenerating && !busy;
     final needsModels = !s.isGenerating && _needsModels(s);
     final hint = Theme.of(context).hintColor;
-    final cs = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
         title: Row(
@@ -455,7 +454,6 @@ class _Bubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final cs = Theme.of(context).colorScheme;
     final w = MediaQuery.of(context).size.width * .8;
     return Align(
       alignment: m.isUser ? Alignment.centerRight : Alignment.centerLeft,

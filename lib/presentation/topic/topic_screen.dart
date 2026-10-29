@@ -219,7 +219,8 @@ class KnowledgeDetailScreen extends StatelessWidget {
         const SizedBox(height: 10),
         SoftButton(label: 'Add Document', icon: Icons.note_add_outlined, onPressed: () => addDocumentToTopic(context, t.id)),
         const SizedBox(height: 10),
-        SoftButton(label: 'Link NFC Tag', icon: Icons.nfc, onPressed: () => Navigator.pushNamed(context, Routes.nfcWrite, arguments: t.id)),
+        if (s.nfcEnabled)
+          SoftButton(label: 'Link NFC Tag', icon: Icons.nfc, onPressed: () => Navigator.pushNamed(context, Routes.nfcWrite, arguments: t.id)),
         const SizedBox(height: 24),
         const Text('Documents', style: TextStyle(fontWeight: FontWeight.w700)),
         const SizedBox(height: 8),

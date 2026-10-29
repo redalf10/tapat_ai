@@ -15,31 +15,32 @@ class ShellScreen extends StatefulWidget {
 class _ShellState extends State<ShellScreen> {
   int _i = 0;
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) {
+    final nfcEnabled = AppState.of(context).nfcEnabled;
+    final destinations = <GlassNavDestination>[
+      const GlassNavDestination(icon: Icons.home_outlined, selectedIcon: Icons.home, label: 'Home'),
+      const GlassNavDestination(icon: Icons.menu_book_outlined, selectedIcon: Icons.menu_book, label: 'Knowledge'),
+      const GlassNavDestination(icon: Icons.chat_bubble_outline, selectedIcon: Icons.chat_bubble, label: 'Chat'),
+      if (nfcEnabled) const GlassNavDestination(icon: Icons.nfc, selectedIcon: Icons.nfc, label: 'NFC'),
+      const GlassNavDestination(icon: Icons.settings_outlined, selectedIcon: Icons.settings, label: 'Settings'),
+    ];
+    final selectedIndex = _i.clamp(0, destinations.length - 1);
+    return Scaffold(
         backgroundColor: Colors.transparent,
-        body: IndexedStack(index: _i, children: [
+        body: IndexedStack(index: selectedIndex, children: [
           HomeTab(onSeeAll: () => setState(() => _i = 1)),
           const KnowledgeBasesScreen(embedded: true),
           const ChatPickerTab(),
-          const NfcHubTab(),
+          if (nfcEnabled) const NfcHubTab(),
           const SettingsScreen(),
         ]),
         bottomNavigationBar: GlassNavigationBar(
-          selectedIndex: _i,
+          selectedIndex: selectedIndex,
           onSelected: (v) => setState(() => _i = v),
-          destinations: const [
-            GlassNavDestination(
-                icon: Icons.home_outlined, selectedIcon: Icons.home, label: 'Home'),
-            GlassNavDestination(
-                icon: Icons.menu_book_outlined, selectedIcon: Icons.menu_book, label: 'Knowledge'),
-            GlassNavDestination(
-                icon: Icons.chat_bubble_outline, selectedIcon: Icons.chat_bubble, label: 'Chat'),
-            GlassNavDestination(icon: Icons.nfc, selectedIcon: Icons.nfc, label: 'NFC'),
-            GlassNavDestination(
-                icon: Icons.settings_outlined, selectedIcon: Icons.settings, label: 'Settings'),
-          ],
+          destinations: destinations,
         ),
       );
+  }
 }
 
 class _ActionCard extends StatelessWidget {
@@ -124,9 +125,11 @@ class HomeTab extends StatelessWidget {
         ]),
         const SizedBox(height: 20),
         Row(children: [
-          _ActionCard('Scan NFC', 'Open a knowledge base by tapping an NFC tag.', Icons.sensors,
-              const [Color(0xFF2563EB), Color(0xFF3B82F6)], () => Navigator.pushNamed(context, Routes.nfcScan)),
-          const SizedBox(width: 12),
+          if (s.nfcEnabled) ...[
+            _ActionCard('Scan NFC', 'Open a knowledge base by tapping an NFC tag.', Icons.sensors,
+                const [Color(0xFF2563EB), Color(0xFF3B82F6)], () => Navigator.pushNamed(context, Routes.nfcScan)),
+            const SizedBox(width: 12),
+          ],
           _ActionCard('Add Document', 'Upload or create documents in your knowledge base.', Icons.note_add_outlined,
               const [Color(0xFF7C3AED), Color(0xFF9F67FF)], () => pickTopicAndUpload(context)),
         ]),

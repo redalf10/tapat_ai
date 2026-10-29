@@ -111,6 +111,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> _modelWork = Future.value();
   late bool onboarded;
   late ThemeMode themeMode;
+  bool get nfcEnabled => repositories.settings.get('nfc_enabled') == 'true';
   List<Topic> topics = [];
   final Map<String, List<Message>> chats = {};
   String query = '';
@@ -162,6 +163,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   void setQuery(String q) { query = q; notifyListeners(); }
   void setFilter(String f) { filter = f; notifyListeners(); }
   void setTheme(ThemeMode m) { themeMode = m; repositories.settings.set('theme', '${m.index}'); notifyListeners(); }
+  void setNfcEnabled(bool enabled) { repositories.settings.set('nfc_enabled', '$enabled'); notifyListeners(); }
   void completeOnboarding() { onboarded = true; prefs.setBool('onboarded', true); notifyListeners(); }
 
   Topic createTopic(String name, String desc, int icon, {String category = 'Personal'}) {

@@ -82,7 +82,6 @@ Future<void> pickTopicAndUpload(BuildContext context) async {
   }
   final id = await showGlassSheet<String>(
     context: context,
-    showDragHandle: true,
     builder: (_) => SafeArea(
       child: ListView(shrinkWrap: true, children: [
         const Padding(
