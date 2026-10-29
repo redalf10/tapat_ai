@@ -3,6 +3,8 @@ import 'dart:ui';
 import 'package:logger/logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tapat_ai/app.dart';
+import 'package:tapat_ai/const/app_glass.dart';
+import 'package:tapat_ai/const/app_theme.dart';
 import 'package:tapat_ai/core/services/mock_service.dart';
 import 'package:tapat_ai/provider/app_provider.dart';
 import 'package:tapat_ai/data/ai/engines.dart';
@@ -34,12 +36,18 @@ Future<void> main() async {
     store = await ObjectBoxStore.open();
   } catch (error, stack) {
     logger.e('Local database could not be opened', error: error, stackTrace: stack);
-    runApp(const MaterialApp(home: Scaffold(
-      body: Center(child: Padding(padding: EdgeInsets.all(24), child: Text(
-        'Tapat AI could not open its local database. Restart the app or reinstall it if the problem continues.',
-        textAlign: TextAlign.center,
-      ))),
-    )));
+    runApp(MaterialApp(
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      builder: (context, child) => GlassBackground(child: child!),
+      home: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: Center(child: Padding(padding: EdgeInsets.all(24), child: Text(
+          'Tapat AI could not open its local database. Restart the app or reinstall it if the problem continues.',
+          textAlign: TextAlign.center,
+        ))),
+      ),
+    ));
     return;
   }
   final repositories = Repositories(store);

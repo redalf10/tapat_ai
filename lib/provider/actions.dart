@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tapat_ai/const/app_glass.dart';
 import 'package:tapat_ai/const/app_route.dart';
 import 'package:tapat_ai/provider/app_provider.dart';
 
@@ -25,23 +26,19 @@ Future<void> pickTopicAndUpload(BuildContext context) async {
     Navigator.pushNamed(context, Routes.create);
     return;
   }
-  final id = await showModalBottomSheet<String>(
+  final id = await showGlassSheet<String>(
     context: context,
-    showDragHandle: true,
-    builder: (_) => SafeArea(
-      child: ListView(shrinkWrap: true, children: [
-        const Padding(
-            padding: EdgeInsets.all(16),
-            child: Text('Upload to which knowledge base?',
-                style: TextStyle(fontWeight: FontWeight.w600))),
-        for (final t in s.topics)
-          ListTile(title: Text(t.name), subtitle: Text(t.stats),
-              onTap: () => Navigator.pop(context, t.id)),
-      ]),
-    ),
+    builder: (sheetContext) => ListView(shrinkWrap: true, children: [
+      const Padding(
+          padding: EdgeInsets.only(bottom: 12),
+          child: Text('Upload to which knowledge base?',
+              style: TextStyle(fontWeight: FontWeight.w600))),
+      for (final t in s.topics)
+        ListTile(title: Text(t.name), subtitle: Text(t.stats),
+            onTap: () => Navigator.pop(sheetContext, t.id)),
+    ]),
   );
   if (id != null && context.mounted) uploadToTopic(context, id);
 }
 
-void snack(BuildContext c, String m) =>
-    ScaffoldMessenger.of(c).showSnackBar(SnackBar(content: Text(m), behavior: SnackBarBehavior.floating));
+void snack(BuildContext c, String m) => glassSnack(c, m);

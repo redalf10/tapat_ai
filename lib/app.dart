@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tapat_ai/const/app_glass.dart';
 import 'package:tapat_ai/const/app_route.dart';
 import 'package:tapat_ai/const/app_theme.dart';
 import 'package:tapat_ai/provider/app_provider.dart';
@@ -20,6 +21,9 @@ class TapatApp extends StatelessWidget {
             themeMode: state.themeMode,
             initialRoute: Routes.splash,
             onGenerateRoute: AppRouter.generate,
+            // The mesh gradient sits behind every route; each glass panel
+            // refracts it through its backdrop filter.
+            builder: (context, child) => GlassBackground(child: child!),
           ),
         ),
       );

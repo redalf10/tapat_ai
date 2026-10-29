@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:tapat_ai/const/app_color.dart';
 import 'package:tapat_ai/const/app_common.dart';
+import 'package:tapat_ai/const/app_glass.dart';
 import 'package:tapat_ai/domain/models/message_model.dart';
 import 'package:tapat_ai/domain/models/source_ref_model.dart';
 import 'package:tapat_ai/const/app_route.dart';
@@ -58,9 +58,8 @@ class _ChatState extends State<ChatScreen> {
       if (!_stopped && answer != null) s.addMessage(topic.id, answer);
     } catch (e) {
       if (mounted && !_stopped) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not answer with the local models: $e')),
-        );
+        glassSnack(context, 'Could not answer with the local models: $e',
+            icon: Icons.error_outline);
       }
     } finally {
       if (mounted) setState(() { _busy = false; _partial = ''; });
@@ -95,7 +94,7 @@ class _ChatState extends State<ChatScreen> {
       }
       if (!_stopped && answer != null) state.addMessage(topic.id, answer);
     } catch (e) {
-      if (mounted && !_stopped) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      if (mounted && !_stopped) glassSnack(context, '$e', icon: Icons.error_outline);
     } finally { if (mounted) setState(() { _busy = false; _partial = ''; }); }
   }
 
@@ -105,40 +104,46 @@ class _ChatState extends State<ChatScreen> {
     if (topic == null) return;
     final chunks = state.repositories.chunks.forTopic(topic.id).where((chunk) =>
       chunk.pageNumber == source.page && chunk.document.target?.name == source.docName).toList();
-    showModalBottomSheet<void>(context: context, showDragHandle: true, isScrollControlled: true,
-      builder: (context) => SafeArea(child: Padding(padding: const EdgeInsets.all(20),
-        child: SingleChildScrollView(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+    showGlassSheet<void>(
+      context: context,
+      builder: (sheetContext) => SingleChildScrollView(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
           Text('${source.docName} · Page ${source.page}', style: const TextStyle(fontWeight: FontWeight.w700)),
           const SizedBox(height: 12),
           for (final chunk in chunks) Padding(padding: const EdgeInsets.only(bottom: 12), child: Text(chunk.text)),
           if (chunks.isEmpty) const Text('The cited text is no longer available.'),
-        ])))));
+        ]),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final s = AppState.of(context);
-    final messenger = ScaffoldMessenger.of(context);
     final t = s.byId(widget.topicId);
     final msgs = s.chatOf(t.id);
     final needsModels = !s.useMocks && (!s.embeddingEngine.isLoaded || !s.llmEngine.isLoaded);
     final hint = Theme.of(context).hintColor;
+    final cs = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(
-        title: Row(mainAxisSize: MainAxisSize.min, children: [
-          TopicIcon(t.iconIndex, size: 24),
-          const SizedBox(width: 8),
-          Flexible(child: Text(t.name, overflow: TextOverflow.ellipsis)),
-        ]),
-        actions: [
-          PopupMenuButton<String>(
-            onSelected: (value) { if (value == 'clear') s.clearChat(t.id); if (value == 'regenerate') _regenerate(); },
-            itemBuilder: (_) => [
-              if (_lastQuestion != null) const PopupMenuItem(value: 'regenerate', child: Text('Regenerate answer')),
-              const PopupMenuItem(value: 'clear', child: Text('Clear chat')),
-            ],
-          ),
-        ],
+      backgroundColor: Colors.transparent,
+      appBar: GlassAppBar(
+        appBar: AppBar(
+          title: Row(mainAxisSize: MainAxisSize.min, children: [
+            TopicIcon(t.iconIndex, size: 24),
+            const SizedBox(width: 8),
+            Flexible(child: Text(t.name, overflow: TextOverflow.ellipsis)),
+          ]),
+          actions: [
+            PopupMenuButton<String>(
+              onSelected: (value) { if (value == 'clear') s.clearChat(t.id); if (value == 'regenerate') _regenerate(); },
+              itemBuilder: (_) => [
+                if (_lastQuestion != null) const PopupMenuItem(value: 'regenerate', child: Text('Regenerate answer')),
+                const PopupMenuItem(value: 'clear', child: Text('Clear chat')),
+              ],
+            ),
+          ],
+        ),
       ),
       body: Column(children: [
         if (needsModels) MaterialBanner(
@@ -163,8 +168,8 @@ class _ChatState extends State<ChatScreen> {
                           : _Bubble(Message(_partial, false), onSource: _showSource)
                       : _Bubble(msgs[i], onSource: _showSource, onCopy: () async {
                           await Clipboard.setData(ClipboardData(text: msgs[i].text));
-                          if (!mounted) return;
-                          messenger.showSnackBar(const SnackBar(content: Text('Copied')));
+                          if (!context.mounted) return;
+                          glassSnack(context, 'Copied', icon: Icons.check);
                         }),
                 ),
         ),
@@ -173,20 +178,36 @@ class _ChatState extends State<ChatScreen> {
             padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
             child: Row(children: [
               Expanded(
-                child: TextField(
+                child: GlassTextField(
                   controller: _ctrl,
-                  onSubmitted: (_) => _send(),
+                  hintText: 'Ask a question...',
                   textInputAction: TextInputAction.send,
-                  decoration: InputDecoration(
-                    hintText: 'Ask a question...',
-                    suffixIcon: IconButton(icon: const Icon(Icons.mic_none), onPressed: () {}),
-                  ),
+                  onSubmitted: (_) => _send(),
+                  suffix: IconButton(icon: const Icon(Icons.mic_none), onPressed: () {}),
                 ),
               ),
               const SizedBox(width: 8),
-              CircleAvatar(backgroundColor: AppColors.blue,
-                child: IconButton(icon: Icon(_busy ? Icons.stop : Icons.arrow_forward, color: Colors.white),
-                  onPressed: _busy ? _stop : (needsModels ? () => Navigator.pushNamed(context, Routes.models) : _send)),
+              GlassSurface(
+                radius: 24,
+                blur: Glass.blurSoft,
+                shadow: false,
+                padding: EdgeInsets.zero,
+                fill: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    cs.primary.withValues(alpha: .92),
+                    cs.primary.withValues(alpha: .74),
+                  ],
+                ),
+                onTap: _busy
+                    ? _stop
+                    : (needsModels ? () => Navigator.pushNamed(context, Routes.models) : _send),
+                child: SizedBox(
+                  width: 48,
+                  height: 48,
+                  child: Icon(_busy ? Icons.stop : Icons.arrow_forward, color: Colors.white),
+                ),
               ),
             ]),
           ),
@@ -204,42 +225,52 @@ class _Bubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
+    final cs = Theme.of(context).colorScheme;
     final w = MediaQuery.of(context).size.width * .8;
     return Align(
       alignment: m.isUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        constraints: BoxConstraints(maxWidth: w),
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: m.isUser
-              ? (dark ? const Color(0xFF1E3A8A) : const Color(0xFFDCE8FF))
-              : Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(14),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: GlassSurface(
+          radius: 18,
+          blur: Glass.blur,
+          fill: m.isUser
+              ? LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: dark
+                      ? [cs.primary.withValues(alpha: .46), cs.primary.withValues(alpha: .28)]
+                      : [cs.primary.withValues(alpha: .30), cs.primary.withValues(alpha: .16)],
+                )
+              : null,
+          padding: const EdgeInsets.all(12),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: w),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(m.text, style: const TextStyle(height: 1.4)),
+              if (m.sources.isNotEmpty) ...[
+                const Divider(height: 20),
+                Text('Sources (${m.sources.length})', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                for (final s in m.sources)
+                  InkWell(onTap: onSource == null ? null : () => onSource!(s), borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 6, bottom: 4),
+                      child: Row(children: [
+                        const Icon(Icons.picture_as_pdf, size: 14, color: Colors.red),
+                        const SizedBox(width: 6),
+                        Expanded(child: Text(s.docName, style: const TextStyle(fontSize: 11))),
+                        Text('Page ${s.page}', style: TextStyle(fontSize: 11, color: Theme.of(context).hintColor)),
+                      ]),
+                    ),
+                  ),
+              ],
+              if (onCopy != null && !m.isUser)
+                Align(alignment: Alignment.centerRight, child: IconButton(
+                  visualDensity: VisualDensity.compact, tooltip: 'Copy message',
+                  icon: const Icon(Icons.copy, size: 16), onPressed: onCopy)),
+            ]),
+          ),
         ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(m.text, style: const TextStyle(height: 1.4)),
-          if (m.sources.isNotEmpty) ...[
-            const Divider(height: 20),
-            Text('Sources (${m.sources.length})', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-            for (final s in m.sources)
-              InkWell(onTap: onSource == null ? null : () => onSource!(s), borderRadius: BorderRadius.circular(8),
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 6, bottom: 4),
-                  child: Row(children: [
-                    const Icon(Icons.picture_as_pdf, size: 14, color: Colors.red),
-                    const SizedBox(width: 6),
-                    Expanded(child: Text(s.docName, style: const TextStyle(fontSize: 11))),
-                    Text('Page ${s.page}', style: TextStyle(fontSize: 11, color: Theme.of(context).hintColor)),
-                  ]),
-                ),
-              ),
-          ],
-          if (onCopy != null && !m.isUser)
-            Align(alignment: Alignment.centerRight, child: IconButton(
-              visualDensity: VisualDensity.compact, tooltip: 'Copy message',
-              icon: const Icon(Icons.copy, size: 16), onPressed: onCopy)),
-        ]),
       ),
     );
   }

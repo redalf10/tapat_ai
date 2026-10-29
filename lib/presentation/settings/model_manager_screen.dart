@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../const/app_common.dart';
+import '../../const/app_glass.dart';
 import '../../data/entities/entities.dart';
 import '../../data/ai/engines.dart';
 import '../../data/model_downloader.dart';
@@ -131,8 +132,7 @@ class _ModelManagerScreenState extends State<ModelManagerScreen> {
     return false;
   }
 
-  void _notice(String text) => ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text(text), behavior: SnackBarBehavior.floating));
+  void _notice(String text) => glassSnack(context, text, icon: Icons.check_circle_outline);
   String _size(int bytes) => bytes >= 1073741824 ? '${(bytes / 1073741824).toStringAsFixed(2)} GB' : '${(bytes / 1048576).toStringAsFixed(0)} MB';
   String _duration(Duration? d) => d == null ? 'estimating…' : '${d.inMinutes}:${(d.inSeconds % 60).toString().padLeft(2, '0')} remaining';
 
@@ -142,16 +142,26 @@ class _ModelManagerScreenState extends State<ModelManagerScreen> {
     final models = state.repositories.models.getAll();
     final total = models.fold<int>(0, (sum, m) => sum + m.sizeBytes);
     return Scaffold(
-      appBar: AppBar(title: const Text('Local AI Models')),
+      backgroundColor: Colors.transparent,
+      appBar: GlassAppBar(appBar: AppBar(title: const Text('Local AI Models'))),
       body: ListView(padding: const EdgeInsets.all(16), children: [
         AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           const Text('Your models stay on this device', style: TextStyle(fontWeight: FontWeight.w700)),
           const SizedBox(height: 6),
           Text('Storage used by models: ${_size(total)}', style: TextStyle(color: Theme.of(context).hintColor, fontSize: 12)),
           const SizedBox(height: 10),
-          TextField(controller: _token, obscureText: true,
-            decoration: InputDecoration(labelText: 'Optional Hugging Face access token',
-              suffixIcon: IconButton(tooltip: 'Save token', icon: const Icon(Icons.save_outlined), onPressed: () async { await _downloader.saveToken(_token.text); if (mounted) _notice('Token saved securely on this device.'); }))),
+          const Text('Optional Hugging Face access token',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 6),
+          GlassTextField(
+            controller: _token,
+            obscureText: true,
+            suffix: IconButton(tooltip: 'Save token', icon: const Icon(Icons.save_outlined),
+                onPressed: () async {
+              await _downloader.saveToken(_token.text);
+              if (mounted) _notice('Token saved securely on this device.');
+            }),
+          ),
         ])),
         const SizedBox(height: 16),
         Row(children: [const Expanded(child: Text('Recommended models', style: TextStyle(fontWeight: FontWeight.w700))), TextButton.icon(onPressed: _busy ? null : _import, icon: const Icon(Icons.file_open), label: const Text('Import'))]),

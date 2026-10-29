@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tapat_ai/const/app_color.dart';
 import 'package:tapat_ai/const/app_common.dart';
+import 'package:tapat_ai/const/app_glass.dart';
 import 'package:tapat_ai/const/app_route.dart';
 import 'package:tapat_ai/provider/actions.dart';
 import 'package:tapat_ai/provider/app_provider.dart';
@@ -90,17 +91,23 @@ class NfcDetectedScreen extends StatelessWidget {
         const SizedBox(height: 24),
         const Text('NFC Tag Detected', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w600)),
         const SizedBox(height: 28),
-        Container(
-          width: double.infinity,
+        GlassSurface(
+          radius: 20,
+          blur: 18,
           padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(16)),
+          fill: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0x26FFFFFF), Color(0x0DFFFFFF)],
+          ),
+          rim: Colors.white.withValues(alpha: .22),
           child: Column(children: [
             TopicIcon(t.iconIndex, size: 52),
             const SizedBox(height: 10),
             Text(t.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16)),
             const SizedBox(height: 4),
-            Text('RAG: ${t.nfcId}', style: const TextStyle(color: Colors.white60, fontSize: 12)),
-            Text(t.stats, style: const TextStyle(color: Colors.white60, fontSize: 12)),
+            Text('RAG: ${t.nfcId}', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+            Text(t.stats, style: const TextStyle(color: Colors.white70, fontSize: 12)),
           ]),
         ),
         const Spacer(),
@@ -140,7 +147,8 @@ class _NfcWriteState extends State<NfcWriteScreen> {
     final t = _s.byId(widget.topicId);
     final hint = Theme.of(context).hintColor;
     return Scaffold(
-      appBar: AppBar(title: const Text('Link NFC Tag')),
+      backgroundColor: Colors.transparent,
+      appBar: GlassAppBar(appBar: AppBar(title: const Text('Link NFC Tag'))),
       body: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(children: [

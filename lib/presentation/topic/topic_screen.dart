@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:tapat_ai/const/app_color.dart';
 import 'package:tapat_ai/const/app_common.dart';
+import 'package:tapat_ai/const/app_glass.dart';
 import 'package:tapat_ai/const/app_route.dart';
 import 'package:tapat_ai/domain/models/doc_model.dart';
 import 'package:tapat_ai/domain/models/ingest_progress.dart';
@@ -34,19 +35,18 @@ class _CreateTopicState extends State<CreateTopicScreen> {
   Widget build(BuildContext context) {
     final label = const TextStyle(fontSize: 12, fontWeight: FontWeight.w600);
     return Scaffold(
-      appBar: AppBar(title: const Text('Create New Topic')),
+      backgroundColor: Colors.transparent,
+      appBar: GlassAppBar(appBar: AppBar(title: const Text('Create New Topic'))),
       body: ListView(padding: const EdgeInsets.all(20), children: [
         Center(child: TopicIcon(_icon, size: 80)),
         const SizedBox(height: 24),
         Text('Topic Name', style: label),
         const SizedBox(height: 6),
-        TextField(controller: _name, onChanged: (_) => setState(() {}),
-            decoration: const InputDecoration(hintText: 'e.g. Computer Networking')),
+        GlassTextField(controller: _name, hintText: 'e.g. Computer Networking', onChanged: (_) => setState(() {})),
         const SizedBox(height: 16),
         Text('Description (Optional)', style: label),
         const SizedBox(height: 6),
-        TextField(controller: _desc, maxLines: 3,
-            decoration: const InputDecoration(hintText: 'What is this knowledge base about?')),
+        GlassTextField(controller: _desc, hintText: 'What is this knowledge base about?', maxLines: 3),
         const SizedBox(height: 16),
         DropdownButtonFormField<String>(
           initialValue: _category,
@@ -115,7 +115,8 @@ class _UploadProcessingState extends State<UploadProcessingScreen> {
     final hint = Theme.of(context).hintColor;
     final doc = widget.args.docs.first;
     return Scaffold(
-      appBar: AppBar(title: const Text('Upload Document')),
+      backgroundColor: Colors.transparent,
+      appBar: GlassAppBar(appBar: AppBar(title: const Text('Upload Document'))),
       body: ListView(padding: const EdgeInsets.all(20), children: [
         AppCard(
           child: Row(children: [
@@ -181,26 +182,29 @@ class KnowledgeDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = AppState.of(context);
     final matches = s.topics.where((t) => t.id == topicId);
-    if (matches.isEmpty) return const Scaffold();
+    if (matches.isEmpty) return const Scaffold(backgroundColor: Colors.transparent);
     final t = matches.first;
     final hint = Theme.of(context).hintColor;
     return Scaffold(
-      appBar: AppBar(
-        actions: [
-          PopupMenuButton<String>(
-            onSelected: (v) {
-              if (v == 'edit') _editTopic(context, t, s);
-              if (v == 'delete') {
-                Navigator.pop(context);
-                s.deleteTopic(topicId);
-              }
-            },
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'edit', child: Text('Edit knowledge base')),
-              PopupMenuItem(value: 'delete', child: Text('Delete knowledge base')),
-            ],
-          ),
-        ],
+      backgroundColor: Colors.transparent,
+      appBar: GlassAppBar(
+        appBar: AppBar(
+          actions: [
+            PopupMenuButton<String>(
+              onSelected: (v) {
+                if (v == 'edit') _editTopic(context, t, s);
+                if (v == 'delete') {
+                  Navigator.pop(context);
+                  s.deleteTopic(topicId);
+                }
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(value: 'edit', child: Text('Edit knowledge base')),
+                PopupMenuItem(value: 'delete', child: Text('Delete knowledge base')),
+              ],
+            ),
+          ],
+        ),
       ),
       body: ListView(padding: const EdgeInsets.all(20), children: [
         Center(child: TopicIcon(t.iconIndex, size: 72)),
@@ -219,27 +223,30 @@ class KnowledgeDetailScreen extends StatelessWidget {
         const SizedBox(height: 8),
         if (t.docs.isEmpty) Padding(padding: const EdgeInsets.all(20), child: Center(child: Text('No documents yet', style: TextStyle(color: hint)))),
         for (final d in t.docs)
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                  color: (d.type == DocType.pdf ? Colors.red : d.type == DocType.txt ? Colors.blue : Colors.indigo).withValues(alpha: .12),
-                  borderRadius: BorderRadius.circular(8)),
-              child: Icon(d.type == DocType.pdf ? Icons.picture_as_pdf : Icons.description,
-                  color: d.type == DocType.pdf ? Colors.red : Colors.blue, size: 20),
-            ),
-            title: Text(d.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-            subtitle: Text('${d.chunks} chunks', style: const TextStyle(fontSize: 12)),
-            trailing: PopupMenuButton<String>(
-              onSelected: (value) {
-                if (value == 'remove') s.removeDoc(t.id, d.id);
-                if (value == 'move') _moveDocument(context, t.id, d.id, s);
-              },
-              itemBuilder: (_) => const [
-                PopupMenuItem(value: 'move', child: Text('Move to another topic')),
-                PopupMenuItem(value: 'remove', child: Text('Remove')),
-              ],
+          AppCard(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                    color: (d.type == DocType.pdf ? Colors.red : d.type == DocType.txt ? Colors.blue : Colors.indigo).withValues(alpha: .12),
+                    borderRadius: BorderRadius.circular(8)),
+                child: Icon(d.type == DocType.pdf ? Icons.picture_as_pdf : Icons.description,
+                    color: d.type == DocType.pdf ? Colors.red : Colors.blue, size: 20),
+              ),
+              title: Text(d.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+              subtitle: Text('${d.chunks} chunks', style: const TextStyle(fontSize: 12)),
+              trailing: PopupMenuButton<String>(
+                onSelected: (value) {
+                  if (value == 'remove') s.removeDoc(t.id, d.id);
+                  if (value == 'move') _moveDocument(context, t.id, d.id, s);
+                },
+                itemBuilder: (_) => const [
+                  PopupMenuItem(value: 'move', child: Text('Move to another topic')),
+                  PopupMenuItem(value: 'remove', child: Text('Remove')),
+                ],
+              ),
             ),
           ),
       ]),
@@ -250,15 +257,8 @@ class KnowledgeDetailScreen extends StatelessWidget {
     final name = TextEditingController(text: topic.name);
     final description = TextEditingController(text: topic.description);
     var category = topic.category;
-    await showDialog<void>(context: context, builder: (dialogContext) => StatefulBuilder(builder: (context, setDialogState) => AlertDialog(
-      title: const Text('Edit knowledge base'),
-      content: Column(mainAxisSize: MainAxisSize.min, children: [
-        TextField(controller: name, decoration: const InputDecoration(labelText: 'Name')),
-        TextField(controller: description, decoration: const InputDecoration(labelText: 'Description')),
-        DropdownButtonFormField<String>(initialValue: category, decoration: const InputDecoration(labelText: 'Category'),
-          items: [for (final c in ['Education', 'Work', 'Personal']) DropdownMenuItem(value: c, child: Text(c))],
-          onChanged: (value) { if (value != null) setDialogState(() => category = value); }),
-      ]),
+    await showDialog<void>(context: context, builder: (dialogContext) => GlassDialog(
+      title: 'Edit knowledge base',
       actions: [
         TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
         FilledButton(onPressed: () {
@@ -267,18 +267,30 @@ class KnowledgeDetailScreen extends StatelessWidget {
           Navigator.pop(dialogContext);
         }, child: const Text('Save')),
       ],
-    )));
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        GlassTextField(controller: name, hintText: 'Name'),
+        const SizedBox(height: 12),
+        GlassTextField(controller: description, hintText: 'Description'),
+        const SizedBox(height: 12),
+        DropdownButtonFormField<String>(initialValue: category, decoration: const InputDecoration(labelText: 'Category'),
+          items: [for (final c in ['Education', 'Work', 'Personal']) DropdownMenuItem(value: c, child: Text(c))],
+          onChanged: (value) { if (value != null) category = value; }),
+      ]),
+    ));
     name.dispose();
     description.dispose();
   }
 
   Future<void> _moveDocument(BuildContext context, String currentTopicId, String documentId, AppState state) async {
-    final targetId = await showModalBottomSheet<String>(context: context, showDragHandle: true,
-      builder: (_) => SafeArea(child: ListView(shrinkWrap: true, children: [
-        const ListTile(title: Text('Move document to')),
+    final targetId = await showGlassSheet<String>(
+      context: context,
+      builder: (sheetContext) => ListView(shrinkWrap: true, children: [
+        const Text('Move document to', style: TextStyle(fontWeight: FontWeight.w600)),
+        const SizedBox(height: 8),
         for (final topic in state.topics.where((t) => t.id != currentTopicId))
-          ListTile(title: Text(topic.name), subtitle: Text(topic.category), onTap: () => Navigator.pop(context, topic.id)),
-      ])));
+          ListTile(title: Text(topic.name), subtitle: Text(topic.category), onTap: () => Navigator.pop(sheetContext, topic.id)),
+      ]),
+    );
     if (targetId != null) state.moveDocument(documentId, targetId);
   }
 }

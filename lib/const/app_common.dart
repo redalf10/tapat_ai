@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:tapat_ai/const/app_color.dart';
+import 'package:tapat_ai/const/app_glass.dart';
 import 'package:tapat_ai/const/app_theme.dart';
 import 'package:tapat_ai/domain/models/topic_model.dart';
 
@@ -40,6 +41,20 @@ class BrandLogo extends StatelessWidget {
       );
 }
 
+/// The brand mark resting on a frosted glass disc.
+class BrandGlassMark extends StatelessWidget {
+  const BrandGlassMark({super.key, this.size = 110});
+  final double size;
+  @override
+  Widget build(BuildContext context) => GlassSurface(
+        radius: size * .32,
+        blur: 22,
+        padding: EdgeInsets.all(size * .18),
+        child: BrandLogo(size: size * .5),
+      );
+}
+
+/// Primary call to action: a frosted accent button.
 class GradientButton extends StatelessWidget {
   const GradientButton({super.key, required this.label, required this.onPressed, this.icon, this.loading = false});
   final String label;
@@ -47,19 +62,43 @@ class GradientButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final bool loading;
   @override
-  Widget build(BuildContext context) => Opacity(
-        opacity: onPressed == null ? .5 : 1,
-        child: Material(
-          color: Colors.transparent,
-          child: Ink(
-            decoration: BoxDecoration(
-                color: AppColors.blue, borderRadius: BorderRadius.circular(12)),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: loading ? null : onPressed,
-              child: Container(
-                height: 50,
-                alignment: Alignment.center,
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final enabled = onPressed != null && !loading;
+    return Opacity(
+      opacity: enabled ? 1 : .55,
+      child: GlassSurface(
+        radius: 16,
+        blur: Glass.blurSoft,
+        rim: Colors.white.withValues(alpha: dark ? .3 : .55),
+        fill: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: dark
+              ? const [Color(0xA62563EB), Color(0xA67C3AED)]
+              : const [Color(0xD12563EB), Color(0xD17C3AED)],
+        ),
+        onTap: enabled ? onPressed : null,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.white.withValues(alpha: .3),
+                      Colors.white.withValues(alpha: 0),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+            ),
+            SizedBox(
+              height: 50,
+              child: Center(
                 child: loading
                     ? const SizedBox(width: 22, height: 22,
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
@@ -69,11 +108,14 @@ class GradientButton extends StatelessWidget {
                       ]),
               ),
             ),
-          ),
+          ],
         ),
-      );
+      ),
+    );
+  }
 }
 
+/// Secondary action: a plain frosted glass button.
 class SoftButton extends StatelessWidget {
   const SoftButton({super.key, required this.label, required this.onPressed, this.icon, this.dark = false});
   final String label;
@@ -83,42 +125,52 @@ class SoftButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final foreground = dark ? Colors.white : cs.onSurface;
     return SizedBox(
       height: 50,
       width: double.infinity,
-      child: OutlinedButton.icon(
-        onPressed: onPressed,
-        icon: icon == null ? const SizedBox() : Icon(icon, size: 18),
-        label: Text(label),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: dark ? Colors.white : cs.onSurface,
-          side: BorderSide(color: dark ? Colors.white54 : Colors.transparent),
-          backgroundColor: dark ? Colors.transparent : cs.surfaceContainerHighest.withValues(alpha: .6),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: GlassSurface(
+        radius: 16,
+        blur: Glass.blurSoft,
+        rim: dark ? Colors.white.withValues(alpha: .32) : null,
+        fill: dark
+            ? const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0x26FFFFFF), Color(0x0DFFFFFF)],
+              )
+            : null,
+        onTap: onPressed,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (icon != null) ...[Icon(icon, size: 18, color: foreground), const SizedBox(width: 8)],
+            Text(label, style: TextStyle(color: foreground, fontWeight: FontWeight.w600)),
+          ],
         ),
       ),
     );
   }
 }
 
+/// A frosted card used for grouped content.
 class AppCard extends StatelessWidget {
   const AppCard({super.key, required this.child, this.onTap, this.padding = const EdgeInsets.all(14)});
   final Widget child;
   final VoidCallback? onTap;
   final EdgeInsets padding;
   @override
-  Widget build(BuildContext context) => Material(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(16),
-        elevation: 0,
-        shadowColor: Colors.black12,
-        child: InkWell(
-            borderRadius: BorderRadius.circular(16),
-            onTap: onTap,
-            child: Padding(padding: padding, child: child)),
+  Widget build(BuildContext context) => GlassSurface(
+        radius: 18,
+        blur: Glass.blurSoft,
+        padding: padding,
+        onTap: onTap,
+        child: child,
       );
 }
 
+/// A glossy rounded tile carrying the colour of a knowledge base.
 class TopicIcon extends StatelessWidget {
   const TopicIcon(this.index, {super.key, this.size = 44});
   final int index;
@@ -126,10 +178,44 @@ class TopicIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = topicColors[index % topicColors.length];
+    final radius = BorderRadius.circular(size * .28);
     return Container(
       width: size, height: size,
-      decoration: BoxDecoration(color: c, borderRadius: BorderRadius.circular(size * .28)),
-      child: Icon(topicIcons[index % topicIcons.length], color: Colors.white, size: size * .55),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [c.withValues(alpha: .95), c.withValues(alpha: .62)],
+        ),
+        borderRadius: radius,
+        border: Border.all(color: Colors.white.withValues(alpha: .38)),
+        boxShadow: [
+          BoxShadow(color: c.withValues(alpha: .35), blurRadius: 14, offset: const Offset(0, 5)),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.white.withValues(alpha: .38),
+                    Colors.white.withValues(alpha: 0),
+                  ],
+                ),
+                borderRadius: radius,
+              ),
+            ),
+          ),
+          Center(
+            child: Icon(topicIcons[index % topicIcons.length],
+                color: Colors.white, size: size * .55),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -207,6 +293,7 @@ class _RipplePainter extends CustomPainter {
   bool shouldRepaint(_RipplePainter o) => o.t != t;
 }
 
+/// A scaffold on the dark glass palette, used by the NFC flows.
 class DarkScaffold extends StatelessWidget {
   const DarkScaffold({super.key, required this.child});
   final Widget child;
@@ -214,8 +301,9 @@ class DarkScaffold extends StatelessWidget {
   Widget build(BuildContext context) => Theme(
         data: AppTheme.dark,
         child: Scaffold(
-          body: Container(
-            decoration: const BoxDecoration(gradient: AppColors.darkGradient),
+          backgroundColor: Colors.transparent,
+          body: GlassBackground(
+            dark: true,
             child: SafeArea(child: Padding(padding: const EdgeInsets.all(24), child: child)),
           ),
         ),

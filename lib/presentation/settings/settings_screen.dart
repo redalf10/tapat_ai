@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:tapat_ai/const/app_common.dart';
+import 'package:tapat_ai/const/app_glass.dart';
 import 'package:tapat_ai/const/app_route.dart';
 import 'package:tapat_ai/provider/actions.dart';
 import 'package:tapat_ai/provider/app_provider.dart';
@@ -16,30 +17,41 @@ class SettingsScreen extends StatelessWidget {
 
   Future<void> _themeDialog(BuildContext c, AppState s) => showDialog(
         context: c,
-        builder: (_) => SimpleDialog(title: const Text('App Appearance'), children: [
-          for (final m in ThemeMode.values)
-            ListTile(
-              title: Text(_themeNames[m]!),
-              trailing: s.themeMode == m ? const Icon(Icons.check, color: Colors.blue) : null,
-              onTap: () { s.setTheme(m); Navigator.pop(c); },
-            ),
-        ]),
+        builder: (dialogContext) => GlassDialog(
+          title: 'App Appearance',
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            for (final m in ThemeMode.values)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(_themeNames[m]!),
+                trailing: s.themeMode == m
+                    ? Icon(Icons.check, color: Theme.of(c).colorScheme.primary)
+                    : null,
+                onTap: () { s.setTheme(m); Navigator.pop(dialogContext); },
+              ),
+          ]),
+        ),
       );
 
   Future<bool> _confirm(BuildContext c, String title, String body) async =>
       await showDialog<bool>(
         context: c,
-        builder: (_) => AlertDialog(title: Text(title), content: Text(body), actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Confirm')),
-        ]),
+        builder: (dialogContext) => GlassDialog(
+          title: title,
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+            FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Confirm')),
+          ],
+          child: Text(body),
+        ),
       ) ?? false;
 
   @override
   Widget build(BuildContext context) {
     final s = AppState.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+      backgroundColor: Colors.transparent,
+      appBar: GlassAppBar(appBar: AppBar(title: const Text('Settings'))),
       body: ListView(padding: const EdgeInsets.all(16), children: [
         _Group([
           _Item(Icons.memory, 'Local AI Models', 'Manage LLM and embedding models',
@@ -85,9 +97,10 @@ class SettingsScreen extends StatelessWidget {
     String size(int bytes) => bytes > 1073741824
         ? '${(bytes / 1073741824).toStringAsFixed(2)} GB'
         : '${(bytes / 1048576).toStringAsFixed(1)} MB';
-    await showModalBottomSheet<void>(context: context, showDragHandle: true,
-      builder: (sheetContext) => SafeArea(child: Padding(padding: const EdgeInsets.all(20), child: Column(
-        mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+    await showGlassSheet<void>(
+      context: context,
+      builder: (sheetContext) => SingleChildScrollView(
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
           const Text('Storage Usage', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
           const SizedBox(height: 12),
           ListTile(contentPadding: EdgeInsets.zero, title: const Text('Local AI models'), trailing: Text(size(models.fold<int>(0, (n, m) => n + m.sizeBytes)))),
@@ -106,23 +119,27 @@ class SettingsScreen extends StatelessWidget {
               if (sheetContext.mounted) Navigator.pop(sheetContext);
               if (context.mounted) snack(context, 'Temporary files cleared.');
             })),
-        ],
-      ))));
+        ]),
+      ),
+    );
   }
 
   Future<void> _dataManagement(BuildContext context, AppState state) async {
-    final action = await showModalBottomSheet<String>(context: context, showDragHandle: true,
-      builder: (context) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
-        const ListTile(title: Text('Data Management')),
+    final action = await showGlassSheet<String>(
+      context: context,
+      builder: (sheetContext) => Column(mainAxisSize: MainAxisSize.min, children: [
+        const Align(alignment: Alignment.centerLeft,
+          child: Text('Data Management', style: TextStyle(fontWeight: FontWeight.w600))),
+        const SizedBox(height: 8),
         ListTile(leading: const Icon(Icons.archive_outlined), title: const Text('Export backup'),
-          subtitle: const Text('Topics, chats, document text and local files'), onTap: () => Navigator.pop(context, 'export')),
+          subtitle: const Text('Topics, chats, document text and local files'), onTap: () => Navigator.pop(sheetContext, 'export')),
         ListTile(leading: const Icon(Icons.unarchive_outlined), title: const Text('Import backup'),
-          onTap: () => Navigator.pop(context, 'import')),
+          onTap: () => Navigator.pop(sheetContext, 'import')),
         ListTile(leading: const Icon(Icons.chat_bubble_outline), title: const Text('Clear chat history'),
-          onTap: () => Navigator.pop(context, 'clearChats')),
+          onTap: () => Navigator.pop(sheetContext, 'clearChats')),
         ListTile(leading: const Icon(Icons.delete_outline), title: const Text('Delete all app data'),
-          onTap: () => Navigator.pop(context, 'reset')),
-      ])));
+          onTap: () => Navigator.pop(sheetContext, 'reset')),
+      ]));
     if (!context.mounted || action == null) return;
     try {
       if (action == 'export') {

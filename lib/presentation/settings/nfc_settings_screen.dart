@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../const/app_common.dart';
+import '../../const/app_glass.dart';
 import '../../core/services/nfc_servide.dart';
 import '../../provider/app_provider.dart';
 
@@ -44,13 +45,13 @@ class _NfcSettingsScreenState extends State<NfcSettingsScreen> {
   }
 
   Future<void> _eraseTag() async {
-    final confirm = await showDialog<bool>(context: context, builder: (dialogContext) => AlertDialog(
-      title: const Text('Erase NFC tag?'),
-      content: const Text('This clears the NDEF data from the next writable tag you scan.'),
+    final confirm = await showDialog<bool>(context: context, builder: (dialogContext) => GlassDialog(
+      title: 'Erase NFC tag?',
       actions: [
         TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
         FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Continue')),
       ],
+      child: const Text('This clears the NDEF data from the next writable tag you scan.'),
     ));
     if (confirm != true || !mounted) return;
     setState(() { _busy = true; _result = 'Hold a writable tag near your phone…'; });
@@ -74,7 +75,8 @@ class _NfcSettingsScreenState extends State<NfcSettingsScreen> {
   Widget build(BuildContext context) {
     final available = _available;
     return Scaffold(
-      appBar: AppBar(title: const Text('NFC Settings')),
+      backgroundColor: Colors.transparent,
+      appBar: GlassAppBar(appBar: AppBar(title: const Text('NFC Settings'))),
       body: ListView(padding: const EdgeInsets.all(16), children: [
         AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(available == null ? 'Checking NFC…' : available ? 'NFC is ready' : 'NFC is unavailable',

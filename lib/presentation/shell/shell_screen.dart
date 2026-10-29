@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tapat_ai/const/app_color.dart';
 import 'package:tapat_ai/const/app_common.dart';
+import 'package:tapat_ai/const/app_glass.dart';
 import 'package:tapat_ai/const/app_route.dart';
 import 'package:tapat_ai/presentation/settings/settings_screen.dart';
 import 'package:tapat_ai/provider/actions.dart';
@@ -15,6 +16,7 @@ class _ShellState extends State<ShellScreen> {
   int _i = 0;
   @override
   Widget build(BuildContext context) => Scaffold(
+        backgroundColor: Colors.transparent,
         body: IndexedStack(index: _i, children: [
           HomeTab(onSeeAll: () => setState(() => _i = 1)),
           const KnowledgeBasesScreen(embedded: true),
@@ -22,16 +24,19 @@ class _ShellState extends State<ShellScreen> {
           const NfcHubTab(),
           const SettingsScreen(),
         ]),
-        bottomNavigationBar: NavigationBar(
+        bottomNavigationBar: GlassNavigationBar(
           selectedIndex: _i,
-          onDestinationSelected: (v) => setState(() => _i = v),
-          height: 64,
+          onSelected: (v) => setState(() => _i = v),
           destinations: const [
-            NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Home'),
-            NavigationDestination(icon: Icon(Icons.menu_book_outlined), selectedIcon: Icon(Icons.menu_book), label: 'Knowledge'),
-            NavigationDestination(icon: Icon(Icons.chat_bubble_outline), selectedIcon: Icon(Icons.chat_bubble), label: 'Chat'),
-            NavigationDestination(icon: Icon(Icons.nfc), label: 'NFC'),
-            NavigationDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings), label: 'Settings'),
+            GlassNavDestination(
+                icon: Icons.home_outlined, selectedIcon: Icons.home, label: 'Home'),
+            GlassNavDestination(
+                icon: Icons.menu_book_outlined, selectedIcon: Icons.menu_book, label: 'Knowledge'),
+            GlassNavDestination(
+                icon: Icons.chat_bubble_outline, selectedIcon: Icons.chat_bubble, label: 'Chat'),
+            GlassNavDestination(icon: Icons.nfc, selectedIcon: Icons.nfc, label: 'NFC'),
+            GlassNavDestination(
+                icon: Icons.settings_outlined, selectedIcon: Icons.settings, label: 'Settings'),
           ],
         ),
       );
@@ -44,28 +49,52 @@ class _ActionCard extends StatelessWidget {
   final List<Color> colors;
   final VoidCallback onTap;
   @override
-  Widget build(BuildContext context) => Expanded(
-        child: GestureDetector(
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Expanded(
+      child: SizedBox(
+        height: 150,
+        child: GlassSurface(
+          radius: 20,
+          blur: Glass.blur,
+          fill: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              colors.first.withValues(alpha: dark ? .30 : .34),
+              colors.last.withValues(alpha: dark ? .18 : .20),
+            ],
+          ),
           onTap: onTap,
-          child: Container(
-            height: 150,
+          child: Padding(
             padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-                gradient: LinearGradient(colors: colors, begin: Alignment.topLeft, end: Alignment.bottomRight),
-                borderRadius: BorderRadius.circular(18)),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(10)),
-                  child: Icon(icon, color: Colors.white)),
+              GlassSurface(
+                radius: 12,
+                blur: Glass.blurSoft,
+                shadow: false,
+                padding: const EdgeInsets.all(8),
+                fill: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    colors.first.withValues(alpha: .92),
+                    colors.last.withValues(alpha: .85),
+                  ],
+                ),
+                child: Icon(icon, color: Colors.white, size: 20),
+              ),
               const Spacer(),
-              Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+              Text(title, style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w700)),
               const SizedBox(height: 4),
-              Text(sub, style: const TextStyle(color: Colors.white70, fontSize: 11)),
+              Text(sub, style: TextStyle(color: cs.onSurfaceVariant, fontSize: 11)),
             ]),
           ),
         ),
-      );
+      ),
+    );
+  }
 }
 
 class HomeTab extends StatelessWidget {
@@ -85,7 +114,13 @@ class HomeTab extends StatelessWidget {
             ]),
           ),
           IconButton(icon: const Icon(Icons.search), onPressed: () => Navigator.pushNamed(context, Routes.knowledge)),
-          const CircleAvatar(radius: 16, backgroundColor: AppColors.blue, child: Icon(Icons.person, size: 18, color: Colors.white)),
+          GlassSurface(
+            radius: 18,
+            blur: Glass.blurSoft,
+            shadow: false,
+            padding: const EdgeInsets.all(9),
+            child: const Icon(Icons.person, size: 18, color: AppColors.blue),
+          ),
         ]),
         const SizedBox(height: 20),
         Row(children: [
@@ -117,36 +152,34 @@ class KnowledgeBasesScreen extends StatelessWidget {
     final s = AppState.of(context);
     final list = s.filtered;
     return Scaffold(
-      appBar: AppBar(title: const Text('Knowledge Bases'), automaticallyImplyLeading: !embedded),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.blue,
-        foregroundColor: Colors.white,
-        shape: const CircleBorder(),
+      backgroundColor: Colors.transparent,
+      appBar: GlassAppBar(
+        appBar: AppBar(title: const Text('Knowledge Bases'), automaticallyImplyLeading: !embedded),
+      ),
+      floatingActionButton: GlassFab(
+        icon: Icons.add,
+        tooltip: 'New knowledge base',
         onPressed: () => Navigator.pushNamed(context, Routes.create),
-        child: const Icon(Icons.add),
       ),
       body: Column(children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-          child: TextField(
+          child: GlassTextField(
+            hintText: 'Search knowledge bases...',
+            prefixIcon: const Icon(Icons.search, size: 20),
             onChanged: s.setQuery,
-            decoration: const InputDecoration(
-                hintText: 'Search knowledge bases...', prefixIcon: Icon(Icons.search, size: 20)),
           ),
         ),
         SizedBox(
-          height: 40,
+          height: 44,
           child: ListView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 16), children: [
             for (final c in AppState.categories)
               Padding(
                 padding: const EdgeInsets.only(right: 8),
-                child: ChoiceChip(
-                  label: Text(c),
+                child: GlassChip(
+                  label: c,
                   selected: s.filter == c,
-                  onSelected: (_) => s.setFilter(c),
-                  selectedColor: AppColors.blue,
-                  labelStyle: TextStyle(color: s.filter == c ? Colors.white : null),
-                  showCheckmark: false,
+                  onTap: () => s.setFilter(c),
                 ),
               ),
           ]),
@@ -170,7 +203,8 @@ class ChatPickerTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = AppState.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Chat')),
+      backgroundColor: Colors.transparent,
+      appBar: GlassAppBar(appBar: AppBar(title: const Text('Chat'))),
       body: s.topics.isEmpty
           ? const Center(child: Text('Create a knowledge base to start chatting.'))
           : ListView(padding: const EdgeInsets.all(16), children: [
@@ -189,7 +223,8 @@ class NfcHubTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = AppState.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('NFC')),
+      backgroundColor: Colors.transparent,
+      appBar: GlassAppBar(appBar: AppBar(title: const Text('NFC'))),
       body: ListView(padding: const EdgeInsets.all(20), children: [
         Center(child: Ripple(size: 200, child: const Icon(Icons.nfc, size: 56, color: AppColors.blue))),
         const SizedBox(height: 16),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tapat_ai/const/app_color.dart';
 import 'package:tapat_ai/const/app_common.dart';
+import 'package:tapat_ai/const/app_glass.dart';
 import 'package:tapat_ai/const/app_route.dart';
 import 'package:tapat_ai/provider/app_provider.dart';
 
@@ -30,13 +31,13 @@ class _SplashState extends State<SplashScreen> with SingleTickerProviderStateMix
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        body: Container(
-          width: double.infinity,
-          decoration: const BoxDecoration(gradient: AppColors.darkGradient),
+        backgroundColor: Colors.transparent,
+        body: GlassBackground(
+          dark: true,
           child: SafeArea(
             child: Column(children: [
               const Spacer(flex: 3),
-              const BrandLogo(size: 110),
+              const BrandGlassMark(size: 110),
               const SizedBox(height: 16),
               const Text('Tapat AI',
                   style: TextStyle(color: Colors.white, fontSize: 40, fontWeight: FontWeight.bold)),
@@ -101,6 +102,7 @@ class _OnboardingState extends State<OnboardingScreen> {
   Widget build(BuildContext context) {
     final hint = Theme.of(context).hintColor;
     return Scaffold(
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Column(children: [
           Align(
@@ -126,10 +128,19 @@ class _OnboardingState extends State<OnboardingScreen> {
                     const Spacer(),
                     Ripple(
                       size: 240,
-                      child: Container(
+                      child: GlassSurface(
+                        radius: 32,
+                        blur: 20,
                         padding: const EdgeInsets.all(26),
-                        decoration: BoxDecoration(
-                            gradient: AppColors.gradient, borderRadius: BorderRadius.circular(32)),
+                        rim: Colors.white.withValues(alpha: .35),
+                        fill: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            AppColors.blue.withValues(alpha: .88),
+                            AppColors.purple.withValues(alpha: .82),
+                          ],
+                        ),
                         child: Wrap(spacing: 12, runSpacing: 12, alignment: WrapAlignment.center,
                             children: [for (final ic in p.$4) Icon(ic, color: Colors.white, size: 34)]),
                       ),
