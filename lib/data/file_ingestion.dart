@@ -217,10 +217,7 @@ class IngestDocumentUseCase {
       final docs = repositories.documents.forTopic(topic.id);
       if (docs.any((d) => d.contentSha256 == sha)) continue;
       final folder = await _documentDirectory();
-      final localPath = p.join(
-        folder.path,
-        '${const Uuid().v4()}${p.extension(doc.name)}',
-      );
+      final localPath = p.join(folder.path, '${const Uuid().v4()}${p.extension(doc.name)}');
       final localFile = await source.copy(localPath);
       final entity = DocumentEntity()
         ..uuid = doc.id
@@ -228,95 +225,116 @@ class IngestDocumentUseCase {
         ..type = doc.type.name
         ..sizeBytes = bytes.length
         ..path = localFile.path
-        ..status = 'processing'
+        ..status = 'saved'
         ..createdAt = DateTime.now()
         ..contentSha256 = sha;
       entity.topic.target = topic;
-      repositories.documents.put(entity);
       var committed = false;
       try {
-        yield const IngestProgress(0, .05, 'Reading document');
-        final pages = await extractPages(localFile.path, doc.type);
-        if (doc.type == DocType.pdf &&
-            pages.every((page) => page.text.trim().isEmpty)) {
-          throw const FormatException(
-            'This PDF appears to be scanned or image-only. OCR is not available yet.',
-          );
-        }
-        entity.pageCount = pages.length;
-        yield const IngestProgress(1, .18, 'Splitting text by page');
-        final chunks = await splitPagesInBackground(_chunker, pages);
-        if (chunks.isEmpty) {
-          throw const FormatException(
-            'No readable text was found in this document.',
-          );
-        }
-        yield IngestProgress(1, .20, 'Created ${chunks.length} chunks');
-        if (embedding.dimensions != 384) {
-          throw StateError(
-            'This embedding model has ${embedding.dimensions} dimensions; this index requires 384. Re-index this knowledge base after selecting a supported model.',
-          );
-        }
-        final embeddingId = embedding.modelId;
-        if (embeddingId == null || embeddingId.isEmpty) {
-          throw StateError('Load an active embedding model first.');
-        }
-        final records = <ChunkEntity>[];
-        const batchSize = 8;
-        yield IngestProgress(2, .20, '0 / ${chunks.length} chunks');
-        for (var i = 0; i < chunks.length; i += batchSize) {
-          final end = (i + batchSize).clamp(0, chunks.length);
-          final vectors = await embedding.embedBatch(
-            chunks.sublist(i, end).map((e) => e.text).toList(),
-          );
-          if (embedding.modelId != embeddingId) {
-            throw StateError(
-              'The embedding model changed during ingestion. Try again.',
-            );
-          }
-          if (vectors.length != end - i ||
-              vectors.any(
-                (v) => v.length != 384 || v.any((value) => !value.isFinite),
-              )) {
-            throw StateError('Embedding model returned an invalid vector.');
-          }
-          for (var j = i; j < end; j++) {
-            final chunk = chunks[j];
-            final row = ChunkEntity()
-              ..text = chunk.text
-              ..pageNumber = chunk.page
-              ..chunkIndex = j
-              ..embeddingModelId = embeddingId;
-            row.document.target = entity;
-            row.topic.target = topic;
-            row.vector = vectors[j - i];
-            records.add(row);
-          }
-          yield IngestProgress(
-            2,
-            .2 + .62 * end / chunks.length,
-            '$end / ${chunks.length} chunks',
-          );
-        }
-        if (embedding.modelId != embeddingId) {
-          throw StateError(
-            'The embedding model changed during ingestion. Try again.',
-          );
-        }
-        repositories.chunks.putMany(records);
-        entity.chunkCount = records.length;
-        entity.status = 'ready';
+        if (repositories.topics.byUuid(topic.uuid) == null) throw StateError('This knowledge base no longer exists.');
         repositories.documents.put(entity);
-        committed = true;
-        yield const IngestProgress(3, .94, 'Saved on this device');
+        await for (final progress in indexSaved(entity.uuid)) {
+          if (progress.stage >= 3) committed = true;
+          if (progress.stage != 4) yield progress;
+        }
       } finally {
         if (!committed) {
-          repositories.chunks.deleteForDocument(entity.id);
           repositories.documents.delete(entity.uuid, repositories.chunks);
+          if (await localFile.exists()) await localFile.delete();
         }
       }
     }
     yield const IngestProgress(4, 1, 'Completed');
+  }
+
+  Stream<IngestProgress> indexSaved(String documentId) async* {
+    final entity = repositories.documents.byUuid(documentId);
+    if (entity == null) throw StateError('This document no longer exists.');
+    final topic = entity.topic.target;
+    if (topic == null) throw StateError('This knowledge base no longer exists.');
+    final sourcePath = entity.path;
+    final sourceSha = entity.contentSha256;
+    final topicId = topic.id;
+    final previousStatus = entity.status == 'processing' ? 'saved' : entity.status;
+    final type = DocType.values.where((value) => value.name == entity.type).firstOrNull;
+    if (type == null) throw StateError('This document format is not supported.');
+    var committed = false;
+    DocumentEntity? currentVersion() {
+      final current = repositories.documents.byUuid(documentId);
+      return current != null && current.id == entity.id && current.path == sourcePath &&
+          current.contentSha256 == sourceSha && current.topic.targetId == topicId ? current : null;
+    }
+    try {
+      entity.status = 'processing';
+      repositories.documents.put(entity);
+      yield const IngestProgress(0, .05, 'Reading document');
+      final bytes = await File(sourcePath).readAsBytes();
+      final actualSha = sha256.convert(bytes).toString();
+      if (sourceSha.isNotEmpty && actualSha != sourceSha) throw StateError('The saved file changed. Save it again before indexing.');
+      final pages = await extractPages(sourcePath, type);
+      if (type == DocType.pdf && pages.every((page) => page.text.trim().isEmpty)) {
+        throw const FormatException('This PDF appears to be scanned or image-only. OCR is not available yet.');
+      }
+      yield const IngestProgress(1, .18, 'Splitting text by page');
+      final chunks = await splitPagesInBackground(_chunker, pages);
+      if (chunks.isEmpty) throw const FormatException('No readable text was found in this document.');
+      yield IngestProgress(1, .20, 'Created ${chunks.length} chunks');
+      if (embedding.dimensions != 384) {
+        throw StateError('This embedding model has ${embedding.dimensions} dimensions; this index requires 384. Load a supported embedding model before indexing.');
+      }
+      final embeddingId = embedding.modelId;
+      if (embeddingId == null || embeddingId.isEmpty) throw StateError('Load an active embedding model first.');
+      final records = <ChunkEntity>[];
+      const batchSize = 8;
+      yield IngestProgress(2, .20, '0 / ${chunks.length} chunks');
+      for (var i = 0; i < chunks.length; i += batchSize) {
+        final end = (i + batchSize).clamp(0, chunks.length);
+        final vectors = await embedding.embedBatch(chunks.sublist(i, end).map((chunk) => chunk.text).toList());
+        if (embedding.modelId != embeddingId) throw StateError('The embedding model changed during indexing. Try again.');
+        if (currentVersion() == null) throw StateError('The document changed, moved or was deleted during indexing. Try again.');
+        if (vectors.length != end - i || vectors.any((v) => v.length != 384 || v.any((value) => !value.isFinite))) {
+          throw StateError('Embedding model returned an invalid vector.');
+        }
+        for (var j = i; j < end; j++) {
+          final chunk = chunks[j];
+          final row = ChunkEntity()
+            ..text = chunk.text
+            ..pageNumber = chunk.page
+            ..chunkIndex = j
+            ..embeddingModelId = embeddingId
+            ..vector = vectors[j - i];
+          row.document.target = entity;
+          row.topic.target = topic;
+          records.add(row);
+        }
+        yield IngestProgress(2, .2 + .62 * end / chunks.length, '$end / ${chunks.length} chunks');
+      }
+      if (embedding.modelId != embeddingId) throw StateError('The embedding model changed during indexing. Try again.');
+      repositories.write(() {
+        final current = currentVersion();
+        if (current == null || repositories.topics.byUuid(topic.uuid) == null) {
+          throw StateError('The document changed, moved or was deleted during indexing. Try again.');
+        }
+        repositories.chunks.deleteForDocument(current.id);
+        repositories.chunks.putMany(records);
+        current.chunkCount = records.length;
+        current.pageCount = pages.length;
+        current.contentSha256 = actualSha;
+        current.status = 'ready';
+        repositories.documents.put(current);
+      });
+      committed = true;
+      yield const IngestProgress(3, .94, 'Indexed on this device');
+      yield const IngestProgress(4, 1, 'Completed');
+    } finally {
+      if (!committed) {
+        final current = repositories.documents.byUuid(documentId);
+        if (current != null && current.path == sourcePath && current.contentSha256 == sourceSha && current.status == 'processing') {
+          current.status = previousStatus;
+          repositories.documents.put(current);
+        }
+      }
+    }
   }
 }
 
@@ -343,6 +361,7 @@ class ReindexEmbeddingsUseCase {
     if (embeddingId == null || embeddingId.isEmpty) {
       throw StateError('Load an active embedding model first.');
     }
+    final originals = {for (final row in rows) row.id: (row.text, row.document.targetId, row.topic.targetId)};
     final pending = <ChunkEntity>[];
     const batchSize = 8;
     for (var i = 0; i < rows.length; i += batchSize) {
@@ -379,7 +398,17 @@ class ReindexEmbeddingsUseCase {
         'The embedding model changed during re-indexing. Try again.',
       );
     }
-    repositories.chunks.putMany(pending);
+    repositories.write(() {
+      final current = {for (final topic in repositories.topics.getAll())
+        for (final chunk in repositories.chunks.forTopic(topic.id)) chunk.id: chunk};
+      for (final row in pending) {
+        final chunk = current[row.id];
+        if (chunk == null || (chunk.text, chunk.document.targetId, chunk.topic.targetId) != originals[row.id]) {
+          throw StateError('Documents changed during re-indexing. Try again.');
+        }
+      }
+      repositories.chunks.putMany(pending);
+    });
     yield const IngestProgress(4, 1, 'Re-indexing completed');
   }
 }

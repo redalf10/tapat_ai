@@ -96,7 +96,10 @@ class _UploadProcessingState extends State<UploadProcessingScreen> {
     super.initState();
     final s = AppState.read(context);
     final topic = s.byId(widget.args.topicId);
-    _sub = s.rag.ingest(topic, widget.args.docs).listen((p) {
+    final progress = widget.args.existingDocumentId == null
+        ? s.ingestDocuments(topic, widget.args.docs)
+        : s.indexDocument(widget.args.existingDocumentId!);
+    _sub = progress.listen((p) {
       setState(() => _p = p);
       if (p.stage == 4) {
         s.addDocs(widget.args.topicId, widget.args.docs);
@@ -115,8 +118,7 @@ class _UploadProcessingState extends State<UploadProcessingScreen> {
     final hint = Theme.of(context).hintColor;
     final doc = widget.args.docs.first;
     return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: GlassAppBar(appBar: AppBar(title: const Text('Upload Document'))),
+      appBar: AppBar(title: Text(widget.args.existingDocumentId == null ? 'Upload Document' : 'Index Document')),
       body: ListView(padding: const EdgeInsets.all(20), children: [
         AppCard(
           child: Row(children: [
@@ -215,7 +217,7 @@ class KnowledgeDetailScreen extends StatelessWidget {
         const SizedBox(height: 20),
         GradientButton(label: 'Chat with AI', icon: Icons.auto_awesome, onPressed: () => Navigator.pushNamed(context, Routes.chat, arguments: t.id)),
         const SizedBox(height: 10),
-        SoftButton(label: 'Add Document', icon: Icons.note_add_outlined, onPressed: () => uploadToTopic(context, t.id)),
+        SoftButton(label: 'Add Document', icon: Icons.note_add_outlined, onPressed: () => addDocumentToTopic(context, t.id)),
         const SizedBox(height: 10),
         SoftButton(label: 'Link NFC Tag', icon: Icons.nfc, onPressed: () => Navigator.pushNamed(context, Routes.nfcWrite, arguments: t.id)),
         const SizedBox(height: 24),
@@ -223,30 +225,35 @@ class KnowledgeDetailScreen extends StatelessWidget {
         const SizedBox(height: 8),
         if (t.docs.isEmpty) Padding(padding: const EdgeInsets.all(20), child: Center(child: Text('No documents yet', style: TextStyle(color: hint)))),
         for (final d in t.docs)
-          AppCard(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            child: ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                    color: (d.type == DocType.pdf ? Colors.red : d.type == DocType.txt ? Colors.blue : Colors.indigo).withValues(alpha: .12),
-                    borderRadius: BorderRadius.circular(8)),
-                child: Icon(d.type == DocType.pdf ? Icons.picture_as_pdf : Icons.description,
-                    color: d.type == DocType.pdf ? Colors.red : Colors.blue, size: 20),
-              ),
-              title: Text(d.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-              subtitle: Text('${d.chunks} chunks', style: const TextStyle(fontSize: 12)),
-              trailing: PopupMenuButton<String>(
-                onSelected: (value) {
-                  if (value == 'remove') s.removeDoc(t.id, d.id);
-                  if (value == 'move') _moveDocument(context, t.id, d.id, s);
-                },
-                itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'move', child: Text('Move to another topic')),
-                  PopupMenuItem(value: 'remove', child: Text('Remove')),
-                ],
-              ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                  color: (d.type == DocType.pdf ? Colors.red : d.type == DocType.txt ? Colors.blue : Colors.indigo).withValues(alpha: .12),
+                  borderRadius: BorderRadius.circular(8)),
+              child: Icon(d.type == DocType.pdf ? Icons.picture_as_pdf : Icons.description,
+                  color: d.type == DocType.pdf ? Colors.red : Colors.blue, size: 20),
+            ),
+            title: Text(d.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+            subtitle: Text('${d.originLabel}\n${d.statusLabel}', style: const TextStyle(fontSize: 12)),
+            isThreeLine: true,
+            onTap: d.isEditable && !s.isIndexing ? () => Navigator.pushNamed(context, Routes.documentEditor,
+              arguments: DocumentEditorArgs(t.id, documentId: d.id)) : null,
+            trailing: PopupMenuButton<String>(
+              enabled: !s.isIndexing,
+              onSelected: (value) {
+                if (value == 'edit') Navigator.pushNamed(context, Routes.documentEditor, arguments: DocumentEditorArgs(t.id, documentId: d.id));
+                if (value == 'index') indexSavedDocument(context, t.id, d.id);
+                if (value == 'remove') deleteDocumentFromTopic(context, t.id, d.id);
+                if (value == 'move') _moveDocument(context, t.id, d.id, s);
+              },
+              itemBuilder: (_) => [
+                if (d.isEditable) const PopupMenuItem(value: 'edit', child: Text('Open / Edit')),
+                PopupMenuItem(value: 'index', child: Text(d.isIndexed ? 'Re-index document' : 'Index document')),
+                const PopupMenuItem(value: 'move', child: Text('Move to another topic')),
+                const PopupMenuItem(value: 'remove', child: Text('Delete')),
+              ],
             ),
           ),
       ]),

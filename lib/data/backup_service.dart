@@ -35,8 +35,9 @@ class BackupService {
         final archivePath = 'documents/${doc.uuid}${p.extension(doc.name)}';
         documentsData.add({'uuid': doc.uuid, 'topicUuid': topic.uuid, 'name': doc.name, 'type': doc.type,
           'sizeBytes': doc.sizeBytes, 'archivePath': archivePath, 'pageCount': doc.pageCount,
-          'chunkCount': doc.chunkCount, 'status': 'ready', 'createdAt': doc.createdAt.toIso8601String(),
-          'contentSha256': doc.contentSha256});
+          'chunkCount': doc.chunkCount, 'status': doc.status == 'processing' ? (doc.chunkCount > 0 ? 'ready' : 'saved') : doc.status,
+          'createdAt': doc.createdAt.toIso8601String(), 'contentSha256': doc.contentSha256,
+          'origin': doc.origin, 'aiAssisted': doc.aiAssisted, 'updatedAt': doc.updatedAt?.toIso8601String()});
         final file = File(doc.path);
         if (file.existsSync()) docEntries.add((archivePath, file));
         for (final chunk in repositories.chunks.forDocument(doc.id)) {
@@ -47,7 +48,7 @@ class BackupService {
       }
       for (final chat in repositories.chats.forTopic(topic.id)) {
         chatsData.add({'topicUuid': topic.uuid, 'text': chat.text, 'isUser': chat.isUser,
-          'sourcesJson': chat.sourcesJson, 'createdAt': chat.createdAt.toIso8601String()});
+          'sourcesJson': chat.sourcesJson, 'visualJson': chat.visualJson, 'createdAt': chat.createdAt.toIso8601String()});
       }
     }
     final manifestFile = File(p.join(work.path, 'backup.json'))..writeAsStringSync(jsonEncode(manifest));
@@ -106,9 +107,12 @@ class BackupService {
         ..path = target.path
         ..pageCount = value['pageCount'] as int
         ..chunkCount = value['chunkCount'] as int
-        ..status = 'ready'
+        ..status = value['status'] as String? ?? ((value['chunkCount'] as int) > 0 ? 'ready' : 'saved')
         ..createdAt = DateTime.parse(value['createdAt'] as String)
-        ..contentSha256 = value['contentSha256'] as String;
+        ..contentSha256 = value['contentSha256'] as String
+        ..origin = value['origin'] as String? ?? 'uploaded'
+        ..aiAssisted = value['aiAssisted'] as bool? ?? false
+        ..updatedAt = DateTime.tryParse(value['updatedAt'] as String? ?? '');
       doc.topic.target = topicByUuid[value['topicUuid'] as String];
       repositories.documents.put(doc);
       documentsByUuid[doc.uuid] = doc;
@@ -131,6 +135,7 @@ class BackupService {
         ..text = value['text'] as String
         ..isUser = value['isUser'] as bool
         ..sourcesJson = value['sourcesJson'] as String
+        ..visualJson = value['visualJson'] as String? ?? ''
         ..createdAt = DateTime.parse(value['createdAt'] as String);
       chat.topic.target = topicByUuid[value['topicUuid'] as String];
       repositories.chats.add(chat);

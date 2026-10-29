@@ -60,7 +60,7 @@ void main() {
         objectBox.store.close();
       }
     },
-    skip: Platform.isWindows
+    skip: Platform.isWindows && !const bool.fromEnvironment('NATIVE_OBJECTBOX_TESTS')
         ? 'ObjectBox desktop native library is not shipped for Windows unit tests; run on Android/iOS/Linux with the ObjectBox native runtime.'
         : false,
   );
@@ -100,7 +100,7 @@ void main() {
         await temp.delete(recursive: true);
       }
     },
-    skip: Platform.isWindows
+    skip: Platform.isWindows && !const bool.fromEnvironment('NATIVE_OBJECTBOX_TESTS')
         ? 'ObjectBox desktop native library is not shipped for Windows unit tests; run on Android/iOS/Linux with the ObjectBox native runtime.'
         : false,
   );
@@ -837,7 +837,7 @@ void main() {
         objectBox.store.close();
       }
     });
-  }, skip: Platform.isWindows);
+  }, skip: Platform.isWindows && !const bool.fromEnvironment('NATIVE_OBJECTBOX_TESTS'));
 
   group('PromptBuilder', () {
     test(

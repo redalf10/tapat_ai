@@ -22,7 +22,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(1, 6737961018691423622),
     name: 'ChatMessageEntity',
-    lastPropertyId: const obx_int.IdUid(6, 2516567131893338788),
+    lastPropertyId: const obx_int.IdUid(7, 1960562793236888806),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -62,6 +62,12 @@ final _entities = <obx_int.ModelEntity>[
         id: const obx_int.IdUid(6, 2516567131893338788),
         name: 'createdAt',
         type: 10,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(7, 1960562793236888806),
+        name: 'visualJson',
+        type: 9,
         flags: 0,
       ),
     ],
@@ -137,7 +143,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(3, 8222347767563289884),
     name: 'DocumentEntity',
-    lastPropertyId: const obx_int.IdUid(12, 7413860099284123178),
+    lastPropertyId: const obx_int.IdUid(15, 4070733229917328182),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -214,6 +220,24 @@ final _entities = <obx_int.ModelEntity>[
         id: const obx_int.IdUid(12, 7413860099284123178),
         name: 'contentSha256',
         type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(13, 6872199667194962117),
+        name: 'origin',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(14, 2262047034662421109),
+        name: 'aiAssisted',
+        type: 1,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(15, 4070733229917328182),
+        name: 'updatedAt',
+        type: 10,
         flags: 0,
       ),
     ],
@@ -467,13 +491,15 @@ obx_int.ModelDefinition getObjectBoxModel() {
       objectToFB: (ChatMessageEntity object, fb.Builder fbb) {
         final textOffset = fbb.writeString(object.text);
         final sourcesJsonOffset = fbb.writeString(object.sourcesJson);
-        fbb.startTable(7);
+        final visualJsonOffset = fbb.writeString(object.visualJson);
+        fbb.startTable(8);
         fbb.addInt64(0, object.id);
         fbb.addInt64(1, object.topic.targetId);
         fbb.addOffset(2, textOffset);
         fbb.addBool(3, object.isUser);
         fbb.addOffset(4, sourcesJsonOffset);
         fbb.addInt64(5, object.createdAt.millisecondsSinceEpoch);
+        fbb.addOffset(6, visualJsonOffset);
         fbb.finish(fbb.endTable());
         return object.id;
       },
@@ -497,7 +523,10 @@ obx_int.ModelDefinition getObjectBoxModel() {
           ).vTableGet(buffer, rootOffset, 12, '')
           ..createdAt = DateTime.fromMillisecondsSinceEpoch(
             const fb.Int64Reader().vTableGet(buffer, rootOffset, 14, 0),
-          );
+          )
+          ..visualJson = const fb.StringReader(
+            asciiOptimization: true,
+          ).vTableGet(buffer, rootOffset, 16, '');
         object.topic.targetId = const fb.Int64Reader().vTableGet(
           buffer,
           rootOffset,
@@ -594,7 +623,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final pathOffset = fbb.writeString(object.path);
         final statusOffset = fbb.writeString(object.status);
         final contentSha256Offset = fbb.writeString(object.contentSha256);
-        fbb.startTable(13);
+        final originOffset = fbb.writeString(object.origin);
+        fbb.startTable(16);
         fbb.addInt64(0, object.id);
         fbb.addOffset(1, uuidOffset);
         fbb.addInt64(2, object.topic.targetId);
@@ -607,13 +637,20 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addOffset(9, statusOffset);
         fbb.addInt64(10, object.createdAt.millisecondsSinceEpoch);
         fbb.addOffset(11, contentSha256Offset);
+        fbb.addOffset(12, originOffset);
+        fbb.addBool(13, object.aiAssisted);
+        fbb.addInt64(14, object.updatedAt?.millisecondsSinceEpoch);
         fbb.finish(fbb.endTable());
         return object.id;
       },
       objectFromFB: (obx.Store store, ByteData fbData) {
         final buffer = fb.BufferContext(fbData);
         final rootOffset = buffer.derefObject(0);
-
+        final updatedAtValue = const fb.Int64Reader().vTableGetNullable(
+          buffer,
+          rootOffset,
+          32,
+        );
         final object = DocumentEntity()
           ..id = const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0)
           ..uuid = const fb.StringReader(
@@ -654,7 +691,19 @@ obx_int.ModelDefinition getObjectBoxModel() {
           )
           ..contentSha256 = const fb.StringReader(
             asciiOptimization: true,
-          ).vTableGet(buffer, rootOffset, 26, '');
+          ).vTableGet(buffer, rootOffset, 26, '')
+          ..origin = const fb.StringReader(
+            asciiOptimization: true,
+          ).vTableGet(buffer, rootOffset, 28, '')
+          ..aiAssisted = const fb.BoolReader().vTableGet(
+            buffer,
+            rootOffset,
+            30,
+            false,
+          )
+          ..updatedAt = updatedAtValue == null
+              ? null
+              : DateTime.fromMillisecondsSinceEpoch(updatedAtValue);
         object.topic.targetId = const fb.Int64Reader().vTableGet(
           buffer,
           rootOffset,
@@ -885,6 +934,11 @@ class ChatMessageEntity_ {
   static final createdAt = obx.QueryDateProperty<ChatMessageEntity>(
     _entities[0].properties[5],
   );
+
+  /// See [ChatMessageEntity.visualJson].
+  static final visualJson = obx.QueryStringProperty<ChatMessageEntity>(
+    _entities[0].properties[6],
+  );
 }
 
 /// [ChunkEntity] entity fields to define ObjectBox queries.
@@ -990,6 +1044,21 @@ class DocumentEntity_ {
   /// See [DocumentEntity.contentSha256].
   static final contentSha256 = obx.QueryStringProperty<DocumentEntity>(
     _entities[2].properties[11],
+  );
+
+  /// See [DocumentEntity.origin].
+  static final origin = obx.QueryStringProperty<DocumentEntity>(
+    _entities[2].properties[12],
+  );
+
+  /// See [DocumentEntity.aiAssisted].
+  static final aiAssisted = obx.QueryBooleanProperty<DocumentEntity>(
+    _entities[2].properties[13],
+  );
+
+  /// See [DocumentEntity.updatedAt].
+  static final updatedAt = obx.QueryDateProperty<DocumentEntity>(
+    _entities[2].properties[14],
   );
 }
 

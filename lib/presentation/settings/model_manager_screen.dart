@@ -7,7 +7,7 @@ import '../../data/entities/entities.dart';
 import '../../data/ai/engines.dart';
 import '../../data/model_downloader.dart';
 import '../../data/repositories.dart';
-import '../../data/file_ingestion.dart';
+
 import '../../provider/app_provider.dart';
 
 class ModelManagerScreen extends StatefulWidget {
@@ -25,6 +25,7 @@ class _ModelManagerScreenState extends State<ModelManagerScreen> {
   String? _working;
   String? _error;
   double? _reindexProgress;
+  bool get _modelsLocked => _busy || AppState.read(context).isModelBusy;
 
   @override
   void initState() {
@@ -76,6 +77,7 @@ class _ModelManagerScreenState extends State<ModelManagerScreen> {
 
   Future<void> _activate(ModelEntity model) async {
     final state = AppState.read(context);
+    if (state.isModelBusy) return;
     setState(() { _busy = true; _working = 'Loading ${model.name}'; _error = null; });
     try {
       if (model.kind == 'llm') {
@@ -97,6 +99,7 @@ class _ModelManagerScreenState extends State<ModelManagerScreen> {
 
   Future<void> _delete(ModelEntity model) async {
     final state = AppState.read(context);
+    if (state.isModelBusy) return;
     final file = File(model.localPath);
     if (file.existsSync()) await file.delete();
     if (!mounted) return;
@@ -113,9 +116,10 @@ class _ModelManagerScreenState extends State<ModelManagerScreen> {
 
   Future<void> _reindex() async {
     final state = AppState.read(context);
+    if (state.isModelBusy) return;
     setState(() { _busy = true; _working = 'Re-indexing documents'; _reindexProgress = 0; _error = null; });
     try {
-      await for (final progress in ReindexEmbeddingsUseCase(state.repositories, state.embeddingEngine).call()) {
+      await for (final progress in state.reindexDocuments()) {
         if (mounted) setState(() => _reindexProgress = progress.fraction);
       }
       if (mounted) _notice('All document embeddings have been updated.');
@@ -145,6 +149,10 @@ class _ModelManagerScreenState extends State<ModelManagerScreen> {
       backgroundColor: Colors.transparent,
       appBar: GlassAppBar(appBar: AppBar(title: const Text('Local AI Models'))),
       body: ListView(padding: const EdgeInsets.all(16), children: [
+        if (state.isModelBusy) ...[
+          const AppCard(child: Text('Local AI is working. Model changes and re-indexing will be available when it finishes.')),
+          const SizedBox(height: 12),
+        ],
         AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           const Text('Your models stay on this device', style: TextStyle(fontWeight: FontWeight.w700)),
           const SizedBox(height: 6),
@@ -184,7 +192,7 @@ class _ModelManagerScreenState extends State<ModelManagerScreen> {
           ? const CircularProgressIndicator() : CircularProgressIndicator(value: _reindexProgress))),
         if (_error != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(_error!, style: const TextStyle(color: Colors.red))),
         const SizedBox(height: 20),
-        const Text('Qwen2.5 1.5B requires about 3 GB RAM while running. BGE Small produces 384-dimensional vectors. The first chat and document indexing require both models.', style: TextStyle(fontSize: 12)),
+        const Text('Qwen2.5 1.5B requires about 3 GB RAM while running. BGE Small produces 384-dimensional vectors. Chat uses both models; document text generation only needs the language model, and indexing only needs the embedding model.', style: TextStyle(fontSize: 12)),
       ]),
     );
   }
@@ -205,8 +213,8 @@ class _ModelManagerScreenState extends State<ModelManagerScreen> {
         Text(model.name, style: const TextStyle(fontWeight: FontWeight.w600)),
         Text('${model.kind} · ${_size(model.sizeBytes)}${model.isActive ? ' · Active' : ''}', style: const TextStyle(fontSize: 11)),
       ])),
-      if (!model.isActive) TextButton(onPressed: _busy ? null : () => _activate(model), child: const Text('Use')),
-      if (_needsReindex(model)) TextButton(onPressed: _busy ? null : _reindex, child: const Text('Re-index')),
-      PopupMenuButton<String>(onSelected: (v) { if (v == 'delete') _delete(model); }, itemBuilder: (_) => const [PopupMenuItem(value: 'delete', child: Text('Delete'))]),
+      if (!model.isActive) TextButton(onPressed: _modelsLocked ? null : () => _activate(model), child: const Text('Use')),
+      if (_needsReindex(model)) TextButton(onPressed: _modelsLocked ? null : _reindex, child: const Text('Re-index')),
+      PopupMenuButton<String>(enabled: !_modelsLocked, onSelected: (v) { if (v == 'delete') _delete(model); }, itemBuilder: (_) => const [PopupMenuItem(value: 'delete', child: Text('Delete'))]),
     ])));
 }

@@ -30,6 +30,9 @@ class DocumentEntity {
   String status = 'ready';
   late DateTime createdAt;
   String contentSha256 = '';
+  String origin = 'uploaded';
+  bool aiAssisted = false;
+  DateTime? updatedAt;
 }
 
 @Entity()
@@ -55,6 +58,7 @@ class ChatMessageEntity {
   late String text;
   bool isUser = false;
   String sourcesJson = '[]';
+  String visualJson = '';
   late DateTime createdAt;
 }
 

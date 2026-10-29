@@ -4,9 +4,11 @@ import 'package:tapat_ai/presentation/chat/chat_screen.dart';
 import 'package:tapat_ai/presentation/nfc/nfc_screen.dart';
 import 'package:tapat_ai/presentation/settings/settings_screen.dart';
 import 'package:tapat_ai/presentation/settings/model_manager_screen.dart';
+import 'package:tapat_ai/presentation/settings/image_generation_settings_screen.dart';
 import 'package:tapat_ai/presentation/shell/shell_screen.dart';
 import 'package:tapat_ai/presentation/splashscreen/splash_screen.dart';
 import 'package:tapat_ai/presentation/topic/topic_screen.dart';
+import 'package:tapat_ai/presentation/topic/document_editor_screen.dart';
 
 class Routes {
   static const splash = '/';
@@ -14,6 +16,7 @@ class Routes {
   static const shell = '/home';
   static const create = '/create';
   static const processing = '/processing';
+  static const documentEditor = '/documents/editor';
   static const detail = '/detail'; // arg: topicId
   static const chat = '/chat'; // arg: topicId
   static const nfcScan = '/nfc/scan';
@@ -22,12 +25,20 @@ class Routes {
   static const knowledge = '/knowledge';
   static const settings = '/settings';
   static const models = '/settings/models';
+  static const images = '/settings/images';
 }
 
 class ProcessingArgs {
-  const ProcessingArgs(this.topicId, this.docs);
+  const ProcessingArgs(this.topicId, this.docs, {this.existingDocumentId});
   final String topicId;
   final List<Doc> docs;
+  final String? existingDocumentId;
+}
+
+class DocumentEditorArgs {
+  const DocumentEditorArgs(this.topicId, {this.documentId});
+  final String topicId;
+  final String? documentId;
 }
 
 class AppRouter {
@@ -42,6 +53,7 @@ class AppRouter {
       Routes.shell => const ShellScreen(),
       Routes.create => const CreateTopicScreen(),
       Routes.processing => UploadProcessingScreen(args: a as ProcessingArgs),
+      Routes.documentEditor => DocumentEditorScreen(args: a as DocumentEditorArgs),
       Routes.detail => KnowledgeDetailScreen(topicId: a as String),
       Routes.chat => ChatScreen(topicId: a as String),
       Routes.nfcScan => const NfcScanScreen(),
@@ -50,6 +62,7 @@ class AppRouter {
       Routes.knowledge => const KnowledgeBasesScreen(),
       Routes.settings => const SettingsScreen(),
       Routes.models => const ModelManagerScreen(),
+      Routes.images => const ImageGenerationSettingsScreen(),
       _ => const SplashScreen(),
     };
     return PageRouteBuilder(

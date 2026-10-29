@@ -5,7 +5,7 @@
   "entities": [
     {
       "id": "1:6737961018691423622",
-      "lastPropertyId": "6:2516567131893338788",
+      "lastPropertyId": "7:1960562793236888806",
       "name": "ChatMessageEntity",
       "properties": [
         {
@@ -41,6 +41,11 @@
           "id": "6:2516567131893338788",
           "name": "createdAt",
           "type": 10
+        },
+        {
+          "id": "7:1960562793236888806",
+          "name": "visualJson",
+          "type": 9
         }
       ],
       "relations": []
@@ -104,7 +109,7 @@
     },
     {
       "id": "3:8222347767563289884",
-      "lastPropertyId": "12:7413860099284123178",
+      "lastPropertyId": "15:4070733229917328182",
       "name": "DocumentEntity",
       "properties": [
         {
@@ -172,6 +177,21 @@
           "id": "12:7413860099284123178",
           "name": "contentSha256",
           "type": 9
+        },
+        {
+          "id": "13:6872199667194962117",
+          "name": "origin",
+          "type": 9
+        },
+        {
+          "id": "14:2262047034662421109",
+          "name": "aiAssisted",
+          "type": 1
+        },
+        {
+          "id": "15:4070733229917328182",
+          "name": "updatedAt",
+          "type": 10
         }
       ],
       "relations": []

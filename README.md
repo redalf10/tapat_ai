@@ -38,6 +38,7 @@ The PDF extractor is Syncfusion Flutter PDF. Review Syncfusion's current communi
 
 - **Chat or upload asks for models:** activate both a language model and a 384-dimensional embedding model in Local AI Models.
 - **Model fails to load:** check free storage/RAM, confirm the model is a supported GGUF file, and try a smaller quantization. Models imported as ONNX are not currently supported by the inference adapter.
+- **The previous BGE download fails with `LlamaModelLoadException`:** delete the installed BGE model, download the updated BGE Small English v1.5 (llama.cpp) recommendation, then tap **Use** on that model.
 - **Embedding dimension mismatch:** this database uses 384-dimensional cosine vectors. Activate a compatible embedding model, then use Re-index in Local AI Models to regenerate document vectors.
 - **A PDF imports with no text:** it is likely scanned or image-only. OCR it externally and import a searchable PDF.
 - **NFC is unavailable:** enable NFC in system settings and confirm the device has an NFC reader. iOS may require the correctly signed Runner target with the NFC entitlement.

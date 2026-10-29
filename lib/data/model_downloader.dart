@@ -24,9 +24,9 @@ class ModelCatalogItem {
     ModelCatalogItem(name: 'Qwen2.5 1.5B Instruct', kind: 'llm',
       repo: 'bartowski/Qwen2.5-1.5B-Instruct-GGUF', file: 'Qwen2.5-1.5B-Instruct-Q4_K_M.gguf',
       sizeBytes: 986000000, ramGb: 3.0, quantization: 'Q4_K_M', license: 'Apache-2.0'),
-    ModelCatalogItem(name: 'BGE Small English v1.5', kind: 'embedding',
-      repo: 'cstr/bge-small-en-v1.5-GGUF', file: 'bge-small-en-v1.5-q4_k.gguf',
-      sizeBytes: 24000000, ramGb: 1.0, quantization: 'Q4_K', license: 'MIT / BAAI license', dimensions: 384),
+    ModelCatalogItem(name: 'BGE Small English v1.5 (llama.cpp)', kind: 'embedding',
+      repo: 'CompendiumLabs/bge-small-en-v1.5-gguf', file: 'bge-small-en-v1.5-q4_k_m.gguf',
+      sizeBytes: 24000000, ramGb: 1.0, quantization: 'Q4_K_M', license: 'MIT / BAAI license', dimensions: 384),
   ];
 }
 

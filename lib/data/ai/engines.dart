@@ -363,7 +363,11 @@ class _IsolateEmbeddingBackend implements EmbeddingBackend {
     try {
       backend._isolate = await Isolate.spawn(
         _runEmbeddingWorker,
-        (backend._responses.sendPort, model.localPath),
+        (
+          backend._responses.sendPort,
+          model.localPath,
+          EmbeddingPrompts.family(model),
+        ),
         onError: backend._responses.sendPort,
         onExit: backend._responses.sendPort,
         debugName: 'tapat.embedding',
@@ -443,7 +447,7 @@ class _IsolateEmbeddingBackend implements EmbeddingBackend {
   }
 }
 
-Future<void> _runEmbeddingWorker((SendPort, String) bootstrap) async {
+Future<void> _runEmbeddingWorker((SendPort, String, String) bootstrap) async {
   final reply = bootstrap.$1;
   final commands = ReceivePort();
   LlamaModel? model;
@@ -469,7 +473,12 @@ Future<void> _runEmbeddingWorker((SendPort, String) bootstrap) async {
         nThreads: threads,
         nThreadsBatch: threads,
         embeddings: true,
-        poolingType: PoolingType.auto,
+        // BGE Small is CLS pooled. Set this explicitly instead of relying on
+        // optional GGUF pooling metadata, which can be absent in imported or
+        // older converted model files.
+        poolingType: bootstrap.$3 == 'bge'
+            ? PoolingType.cls
+            : PoolingType.auto,
         attentionType: AttentionType.nonCausal,
       ),
     );
