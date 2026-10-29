@@ -52,6 +52,7 @@ dependencies:
   syncfusion_flutter_pdf: ^35.1.39
   llama_cpp_dart: ^0.9.0-dev.12
   xml: ^7.0.1
+  background_downloader: ^9.6.4
 
 dev_dependencies:
   flutter_test:

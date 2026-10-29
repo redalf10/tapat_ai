@@ -17,7 +17,7 @@ class ModelManagerScreen extends StatefulWidget {
 }
 
 class _ModelManagerScreenState extends State<ModelManagerScreen> {
-  final _downloader = ModelDownloader();
+  final _downloader = ModelDownloader.instance;
   final _token = TextEditingController();
   DownloadProgress? _progress;
   bool _busy = false;
@@ -30,31 +30,38 @@ class _ModelManagerScreenState extends State<ModelManagerScreen> {
   @override
   void initState() {
     super.initState();
+    _downloader.addListener(_downloadStateChanged);
     _downloader.getToken().then((value) { if (mounted) _token.text = value ?? ''; });
+    _downloadStateChanged();
+  }
+
+  void _downloadStateChanged() {
+    if (!mounted) return;
+    final item = _downloader.item;
+    setState(() {
+      if (_downloader.isDownloading && item != null) {
+        _busy = true;
+        _working = item.name;
+        _progress = _downloader.progress;
+        _paused = _downloader.isPaused;
+      } else if (_working != null && ModelCatalogItem.recommended.any((model) => model.name == _working)) {
+        _busy = false;
+        _working = null;
+        _progress = null;
+        _paused = false;
+        if (_downloader.error != null) _error = _downloader.error;
+      }
+    });
   }
 
   @override
-  void dispose() { _downloader.cancel(); _token.dispose(); super.dispose(); }
+  void dispose() { _downloader.removeListener(_downloadStateChanged); _token.dispose(); super.dispose(); }
 
   Future<void> _download(ModelCatalogItem item) async {
-    final state = AppState.read(context);
     setState(() { _busy = true; _working = item.name; _error = null; _progress = null; });
     try {
-      final file = await _downloader.download(item, onProgress: (p) { if (mounted) setState(() => _progress = p); });
-      final model = ModelEntity()
-        ..uuid = LocalFiles.newId()
-        ..name = item.name
-        ..kind = item.kind
-        ..repoId = item.repo
-        ..filename = item.file
-        ..localPath = file.path
-        ..sizeBytes = await file.length()
-        ..status = 'available'
-        ..sha256 = item.sha256
-        ..dimensions = item.dimensions
-        ..license = item.license;
+      await _downloader.download(item, onProgress: (p) { if (mounted) setState(() => _progress = p); });
       if (!mounted) return;
-      state.repositories.models.put(model);
       if (mounted) _notice('${item.name} downloaded and verified.');
     } catch (e) {
       if (mounted) setState(() => _error = '$e');

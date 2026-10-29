@@ -8,6 +8,7 @@ import 'package:tapat_ai/provider/actions.dart';
 import 'package:tapat_ai/provider/app_provider.dart';
 import 'package:tapat_ai/data/repositories.dart';
 import 'package:tapat_ai/data/backup_service.dart';
+import 'package:tapat_ai/data/model_downloader.dart';
 import 'package:tapat_ai/presentation/settings/nfc_settings_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -165,6 +166,7 @@ class SettingsScreen extends StatelessWidget {
         snack(context, 'Chat history cleared.');
       } else if (action == 'reset') {
         if (!await _confirm(context, 'Reset Tapat AI?', 'This deletes all topics, documents, chats and downloaded models.')) return;
+        await ModelDownloader.instance.cancel();
         await state.resetApp();
         if (!context.mounted) return;
         Navigator.pushNamedAndRemoveUntil(context, Routes.splash, (_) => false);

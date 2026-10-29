@@ -13,6 +13,7 @@ import 'package:tapat_ai/data/file_ingestion.dart';
 import 'package:tapat_ai/data/native_nfc_service.dart';
 import 'package:tapat_ai/data/objectbox_store.dart';
 import 'package:tapat_ai/data/repositories.dart';
+import 'package:tapat_ai/data/model_downloader.dart';
 
 const bool useMocks = false;
 
@@ -51,6 +52,7 @@ Future<void> main() async {
     return;
   }
   final repositories = Repositories(store);
+  await ModelDownloader.instance.initialize(repositories);
   final embedding = OnDeviceEmbeddingEngine();
   final llm = OnDeviceLlamaEngine();
   final state = AppState(

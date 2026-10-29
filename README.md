@@ -8,7 +8,7 @@ Tapat AI is an offline-first, on-device knowledge assistant. Imported documents,
 2. Download or import one language model and one embedding model. The recommended catalog includes Qwen2.5 1.5B Instruct (Q4_K_M, about 986 MB, Apache-2.0) and BGE Small English v1.5 (Q4_K_M, 384 dimensions). Model size and RAM estimates are shown in the catalog; actual memory needs vary by device and context length.
 3. Activate both models. Chat and ingestion stay disabled until both are loaded. After download, inference and document search work offline.
 
-You can optionally save a Hugging Face access token in the model screen for repositories that require authentication. Model downloads support progress, pause/resume, cancellation, retry, and SHA-256 checks when a checksum is supplied by the catalog. Imported `.gguf` files are checked for GGUF magic and copied into app storage. The current inference adapter supports GGUF; ONNX imports are not enabled.
+You can optionally save a Hugging Face access token in the model screen for repositories that require authentication. Model downloads support progress, pause/resume, cancellation, retry, and SHA-256 checks when a checksum is supplied by the catalog. On Android and iOS, downloads continue in the background and can finish while the app is suspended; Android shows a transfer notification when allowed. The operating system may pause or stop a transfer, especially after a force-stop, so reopen the app to resume or reconcile it. Imported `.gguf` files are checked for GGUF magic and copied into app storage. The current inference adapter supports GGUF; ONNX imports are not enabled.
 
 ## Documents and search
 
